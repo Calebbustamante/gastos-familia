@@ -536,23 +536,30 @@ const waitForFirebase = () => new Promise(resolve => {
 let _db = null;
 let FB_OK = false;
 const initFirebase = async () => {
-  if (!FB_CONFIGURED) return false;
+  console.log("[Firebase] Iniciando... FB_CONFIGURED:", FB_CONFIGURED);
+  if (!FB_CONFIGURED) {
+    console.warn("[Firebase] No configurado");
+    return false;
+  }
   const ready = await waitForFirebase();
+  console.log("[Firebase] SDK ready:", ready, "typeof firebase:", typeof firebase);
   if (!ready) {
-    console.warn("[Firebase] SDK not loaded");
+    console.warn("[Firebase] SDK no cargó");
     return false;
   }
   try {
+    console.log("[Firebase] Inicializando app...");
     if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    console.log("[Firebase] App inicializada, obteniendo Firestore...");
     _db = firebase.firestore();
     _db.enablePersistence({
       synchronizeTabs: true
-    }).catch(() => {});
+    }).catch(e => console.warn("[Firebase] Persistence:", e));
     FB_OK = true;
-    console.log("[Firebase] ✓ Conectado");
+    console.log("[Firebase] ✓ Conectado a Firestore");
     return true;
   } catch (e) {
-    console.warn("[Firebase] Init error:", e);
+    console.error("[Firebase] Init error:", e);
     return false;
   }
 };
@@ -2284,7 +2291,7 @@ function AdminApp({
     title: "Cerrar sesi\xF3n"
   }, /*#__PURE__*/React.createElement(ILogout, {
     s: 17
-  })))), FB_CONFIGURED && /*#__PURE__*/React.createElement("div", {
+  })))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -2303,7 +2310,7 @@ function AdminApp({
       fontSize: "11px",
       color: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
     }
-  }, syncSt === "synced" ? "Sincronizado con la nube ☁️" : syncSt === "syncing" ? "Sincronizando..." : "Solo local")), /*#__PURE__*/React.createElement("div", {
+  }, syncSt === "synced" ? "☁️ Sincronizado" : syncSt === "syncing" ? "⏳ Conectando..." : syncSt === "error" ? "❌ Error de conexión" : "💾 Solo local — Firebase no configurado")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "grid",
       gridTemplateColumns: "1fr 1fr 1fr",
@@ -2967,7 +2974,7 @@ function MemberDetail({
       padding: "2px 8px",
       borderRadius: "6px"
     }
-  }, "ADMIN")), FB_CONFIGURED && /*#__PURE__*/React.createElement("div", {
+  }, "ADMIN")), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -2986,7 +2993,7 @@ function MemberDetail({
       fontSize: "10px",
       color: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
     }
-  }, syncSt === "synced" ? "Sincronizado" : "Sincronizando..."))), /*#__PURE__*/React.createElement("div", {
+  }, syncSt === "synced" ? "☁️ Sync" : syncSt === "error" ? "❌ Sin sync" : "⏳ Conectando"))), /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       gap: "6px"
