@@ -1,0 +1,6373 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
+  <title>💸 Control de Gastos Familiar</title>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <!-- PWA -->
+  <meta name="theme-color" content="#10b981">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Gastos 💸">
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="/icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="96x96"  href="/icons/icon-96.png">
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    html,body{background:#050B18;min-height:100vh}
+    #root{max-width:480px;margin:0 auto;min-height:100vh}
+    ::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#1e3354;border-radius:3px}
+    input[type=number]::-webkit-inner-spin-button{-webkit-appearance:none}
+    input,select{color-scheme:dark}
+    .delbtn{opacity:.2;transition:opacity .2s}.delbtn:hover{opacity:1}
+    .pulse{animation:pulse 2s infinite}
+    @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+    .hcard{transition:border-color .2s,transform .15s}
+    .hcard:hover{transform:translateY(-1px)}
+  </style>
+</head>
+<body>
+<div id="root"></div>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prop-types/15.8.1/prop-types.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/recharts@2.8.0/umd/Recharts.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+
+
+<script>
+const {
+  useState,
+  useEffect
+} = React;
+const {
+  PieChart,
+  Pie,
+  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer
+} = Recharts;
+
+/* ══════════════════════════════════════════
+   ⚙️  CONFIGURACIÓN EMAILJS (opcional)
+   1. Crea cuenta gratis en emailjs.com
+   2. Crea un Email Service y un Template con:
+      {{to_email}}  {{recovery_code}}  {{user_name}}
+   3. Pega tus credenciales aquí:
+══════════════════════════════════════════ */
+const EJ_KEY = "TU_PUBLIC_KEY";
+const EJ_SVC = "TU_SERVICE_ID";
+const EJ_TPL = "TU_TEMPLATE_ID";
+const EJ_OK = EJ_KEY !== "TU_PUBLIC_KEY";
+
+/* ── Icons ── */
+const IPlus = ({
+  s = 16,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2.5"
+}, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "5",
+  x2: "12",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "5",
+  y1: "12",
+  x2: "19",
+  y2: "12"
+}));
+const IBack = ({
+  s = 18
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("polyline", {
+  points: "15 18 9 12 15 6"
+}));
+const ITrash = ({
+  s = 14
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("polyline", {
+  points: "3 6 5 6 21 6"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M19 6l-1 14H6L5 6"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M10 11v6M14 11v6"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M9 6V4h6v2"
+}));
+const ICard = ({
+  s = 18,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("rect", {
+  x: "1",
+  y: "4",
+  width: "22",
+  height: "16",
+  rx: "2"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "1",
+  y1: "10",
+  x2: "23",
+  y2: "10"
+}));
+const IX = ({
+  s = 16
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2.5"
+}, /*#__PURE__*/React.createElement("line", {
+  x1: "18",
+  y1: "6",
+  x2: "6",
+  y2: "18"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "6",
+  y1: "6",
+  x2: "18",
+  y2: "18"
+}));
+const ICheck = ({
+  s = 16
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2.5"
+}, /*#__PURE__*/React.createElement("polyline", {
+  points: "20 6 9 17 4 12"
+}));
+const IGear = ({
+  s = 18
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("circle", {
+  cx: "12",
+  cy: "12",
+  r: "3"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+}));
+const IDown = ({
+  s = 16
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "7 10 12 15 17 10"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "15",
+  x2: "12",
+  y2: "3"
+}));
+const IRepeat = ({
+  s = 16
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("polyline", {
+  points: "17 1 21 5 17 9"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M3 11V9a4 4 0 0 1 4-4h14"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "7 23 3 19 7 15"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M21 13v2a4 4 0 0 1-4 4H3"
+}));
+const IUp = ({
+  s = 14,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2.5"
+}, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "19",
+  x2: "12",
+  y2: "5"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "5 12 12 5 19 12"
+}));
+const IDn = ({
+  s = 14,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2.5"
+}, /*#__PURE__*/React.createElement("line", {
+  x1: "12",
+  y1: "5",
+  x2: "12",
+  y2: "19"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "19 12 12 19 5 12"
+}));
+const IBell = ({
+  s = 18,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M13.73 21a2 2 0 0 1-3.46 0"
+}));
+const ILock = ({
+  s = 18,
+  c = "currentColor"
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: c,
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("rect", {
+  x: "3",
+  y: "11",
+  width: "18",
+  height: "11",
+  rx: "2",
+  ry: "2"
+}), /*#__PURE__*/React.createElement("path", {
+  d: "M7 11V7a5 5 0 0 1 10 0v4"
+}));
+const ILogout = ({
+  s = 18
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"
+}), /*#__PURE__*/React.createElement("polyline", {
+  points: "16 17 21 12 16 7"
+}), /*#__PURE__*/React.createElement("line", {
+  x1: "21",
+  y1: "12",
+  x2: "9",
+  y2: "12"
+}));
+const IShield = ({
+  s = 18
+}) => /*#__PURE__*/React.createElement("svg", {
+  width: s,
+  height: s,
+  viewBox: "0 0 24 24",
+  fill: "none",
+  stroke: "currentColor",
+  strokeWidth: "2"
+}, /*#__PURE__*/React.createElement("path", {
+  d: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"
+}));
+
+/* ── Constants ── */
+const DEFAULT_CATS = [{
+  name: "Alimentación",
+  icon: "🍔",
+  color: "#10b981"
+}, {
+  name: "Transporte",
+  icon: "🚗",
+  color: "#3b82f6"
+}, {
+  name: "Vivienda",
+  icon: "🏠",
+  color: "#f59e0b"
+}, {
+  name: "Salud",
+  icon: "💊",
+  color: "#ef4444"
+}, {
+  name: "Educación",
+  icon: "📚",
+  color: "#8b5cf6"
+}, {
+  name: "Entretenimiento",
+  icon: "🎮",
+  color: "#ec4899"
+}, {
+  name: "Ropa",
+  icon: "👕",
+  color: "#14b8a6"
+}, {
+  name: "Servicios",
+  icon: "💡",
+  color: "#f97316"
+}, {
+  name: "Crédito",
+  icon: "💳",
+  color: "#6366f1"
+}, {
+  name: "Otros",
+  icon: "📦",
+  color: "#94a3b8"
+}];
+const INCOME_CATS = ["Sueldo", "Freelance", "Bono", "Arriendo", "Pensión", "Regalo", "Venta", "Otro ingreso"];
+const PALETTE = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316"];
+const AVATARS = ["👨", "👩", "👦", "👧", "👴", "👵", "🧑", "🧒", "👼", "🦸"];
+const CAT_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6", "#f97316", "#6366f1", "#94a3b8", "#e11d48", "#0891b2"];
+const fmt = n => `$${Number(n || 0).toLocaleString("es-CL")}`;
+const today = () => new Date().toISOString().slice(0, 10);
+const thisMonth = () => new Date().toISOString().slice(0, 7);
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+/* ── Styles ── */
+const BG = "#050B18",
+  SURF = "#0D1B2A",
+  BRD = "#1E3354",
+  T1 = "#E2E8F0",
+  T2 = "#94a3b8",
+  T3 = "#64748b";
+const FF = "'Outfit',sans-serif",
+  MN = "'JetBrains Mono',monospace";
+const card = (extra = {}) => ({
+  background: SURF,
+  borderRadius: "14px",
+  padding: "16px",
+  marginBottom: "10px",
+  border: `1px solid ${BRD}`,
+  ...extra
+});
+const inp = (extra = {}) => ({
+  background: "#152236",
+  border: `1px solid ${BRD}`,
+  borderRadius: "10px",
+  padding: "11px 14px",
+  color: T1,
+  fontSize: "15px",
+  width: "100%",
+  outline: "none",
+  fontFamily: FF,
+  ...extra
+});
+const lbl = {
+  fontSize: "11px",
+  color: T3,
+  fontWeight: "700",
+  marginBottom: "6px",
+  display: "block",
+  textTransform: "uppercase",
+  letterSpacing: "1px"
+};
+const mono = {
+  fontFamily: MN,
+  fontWeight: "600"
+};
+const overlay = {
+  position: "absolute",
+  top: 0,
+  left: 0,
+  right: 0,
+  minHeight: "100%",
+  background: "rgba(0,0,0,0.82)",
+  zIndex: 50,
+  display: "flex",
+  alignItems: "flex-end"
+};
+const sheet = {
+  background: "#0D1B2A",
+  borderRadius: "18px 18px 0 0",
+  padding: "22px",
+  width: "100%",
+  maxHeight: "92vh",
+  overflowY: "auto"
+};
+
+/* ── Auth helpers ── */
+const AUTH_KEY = "gf_data_v5";
+const hashPwd = async pwd => {
+  // FNV-1a hash (works in any context, including file://)
+  const s = pwd + "_gf_s4lt_9x";
+  let h1 = 0x811c9dc5 >>> 0;
+  let h2 = 0x84222325 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    const c = s.charCodeAt(i);
+    h1 = Math.imul(h1 ^ c, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ c, 0x00000193) >>> 0;
+  }
+  // 2000 mixing rounds for extra strength
+  for (let r = 0; r < 2000; r++) {
+    h1 = Math.imul(h1 ^ h2, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ h1, 0x01000193) >>> 0;
+  }
+  let out = "";
+  for (let i = 0; i < 4; i++) {
+    h1 = Math.imul(h1 ^ h2, 0x01000193) >>> 0;
+    h2 = Math.imul(h2 ^ h1, 0x01000193) >>> 0;
+    out += h1.toString(16).padStart(8, "0") + h2.toString(16).padStart(8, "0");
+  }
+  return out;
+};
+const genCode = () => Math.floor(100000 + Math.random() * 900000).toString();
+const load = () => {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_KEY) || "null");
+  } catch {
+    return null;
+  }
+};
+const save = d => localStorage.setItem(AUTH_KEY, JSON.stringify(d));
+const BLANK_MEMBER = (overrides = {}) => ({
+  id: genId(),
+  name: "",
+  avatar: "👦",
+  color: "#10b981",
+  hash: "",
+  email: "",
+  budgets: {},
+  expenses: [],
+  recurring: [],
+  incomes: [],
+  ...overrides
+});
+
+/* ══════════════════════════════════════════
+   ⚙️  CONFIGURACIÓN FIREBASE
+   1. Ve a console.firebase.google.com
+   2. Crea proyecto → Agrega app Web → copia config
+   3. Ve a Firestore Database → Crear base de datos
+   4. En Reglas (Rules) pega: allow read, write: if true;
+   5. Guarda y listo
+══════════════════════════════════════════ */
+const FB_CONFIG = {
+  apiKey: "TU_API_KEY",
+  authDomain: "TU_PROYECTO.firebaseapp.com",
+  projectId: "TU_PROYECTO_ID",
+  storageBucket: "TU_PROYECTO.appspot.com",
+  messagingSenderId: "TU_SENDER_ID",
+  appId: "TU_APP_ID"
+};
+const FB_OK = FB_CONFIG.apiKey !== "TU_API_KEY" && typeof firebase !== "undefined";
+let _db = null;
+const getDb = () => {
+  if (!_db && FB_OK) {
+    try {
+      if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+      _db = firebase.firestore();
+      _db.enablePersistence({
+        synchronizeTabs: true
+      }).catch(() => {});
+    } catch (e) {
+      console.warn("[Firebase] Init:", e);
+    }
+  }
+  return _db;
+};
+const familyRef = () => {
+  try {
+    var _getDb;
+    return (_getDb = getDb()) === null || _getDb === void 0 ? void 0 : _getDb.collection("family").doc("data");
+  } catch {
+    return null;
+  }
+};
+const cloudLoad = async () => {
+  try {
+    var _familyRef;
+    const s = await ((_familyRef = familyRef()) === null || _familyRef === void 0 ? void 0 : _familyRef.get());
+    return s !== null && s !== void 0 && s.exists ? s.data() : null;
+  } catch (e) {
+    console.warn("[Firebase] Load:", e);
+    return null;
+  }
+};
+const cloudSave = d => {
+  try {
+    var _familyRef2;
+    (_familyRef2 = familyRef()) === null || _familyRef2 === void 0 || _familyRef2.set(d);
+  } catch (e) {
+    console.warn("[Firebase] Save:", e);
+  }
+};
+
+/* ── Installment alerts ── */
+const getAlerts = members => {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const out = [];
+  members.forEach(m => {
+    (m.expenses || []).filter(e => e.isCredit).forEach(exp => {
+      const rem = exp.totalInstallments - exp.currentInstallment;
+      if (rem < 0) return;
+      const orig = new Date(exp.date);
+      const due = new Date(orig.getFullYear(), orig.getMonth() + exp.currentInstallment - 1 + (rem === 0 ? 0 : 1), orig.getDate());
+      const days = Math.ceil((due - now) / 86400000);
+      let urg = null;
+      if (days < 0) urg = "vencida";else if (days <= 3) urg = "hoy";else if (days <= 7) urg = "urgente";else if (days <= 30) urg = "proxima";
+      if (urg) out.push({
+        member: m,
+        exp,
+        nextN: rem === 0 ? exp.totalInstallments : exp.currentInstallment + 1,
+        due,
+        days,
+        urg,
+        isLast: rem === 0
+      });
+    });
+  });
+  return out.sort((a, b) => a.days - b.days);
+};
+
+/* ── helpers ── */
+const mInc = (m, mon) => (m.incomes || []).filter(i => i.date.startsWith(mon)).reduce((s, i) => s + i.amount, 0);
+const mExp = (m, mon) => (m.expenses || []).filter(e => e.date.startsWith(mon)).reduce((s, e) => s + (e.isCredit ? e.installmentAmount : e.amount), 0);
+const mBal = (m, mon) => mInc(m, mon) - mExp(m, mon);
+const bAlert = (m, mon) => {
+  const sp = (m.expenses || []).filter(e => e.date.startsWith(mon)).reduce((a, e) => {
+    a[e.category] = (a[e.category] || 0) + (e.isCredit ? e.installmentAmount : e.amount);
+    return a;
+  }, {});
+  const en = Object.entries(m.budgets || {});
+  if (!en.length) return null;
+  const mx = Math.max(...en.map(([c, b]) => (sp[c] || 0) / b * 100));
+  return mx >= 100 ? "exceeded" : mx >= 70 ? "warning" : null;
+};
+const Toast = ({
+  t
+}) => t ? /*#__PURE__*/React.createElement("div", {
+  style: {
+    position: "fixed",
+    top: "16px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: t.color || "#10b981",
+    color: "#000",
+    padding: "10px 20px",
+    borderRadius: "12px",
+    fontWeight: "700",
+    fontSize: "14px",
+    zIndex: 999,
+    fontFamily: FF,
+    whiteSpace: "nowrap",
+    boxShadow: "0 4px 20px rgba(0,0,0,.5)"
+  }
+}, t.msg) : null;
+
+/* ════════════════════════════════════════════════════════════
+   AUTH WRAPPER
+════════════════════════════════════════════════════════════ */
+function AuthWrapper() {
+  const [sc, setSc] = useState("loading"); // loading|who|pwd|forgot|verify|admin|member|register
+  const [data, setData] = useState(null);
+  const [who, setWho] = useState(null); // {role:"admin"} | {role:"member", id}
+  const [err, setErr] = useState("");
+  const [inf, setInf] = useState("");
+  const [syncSt, setSyncSt] = useState("local"); // local | syncing | synced | error
+
+  useEffect(() => {
+    const init = async () => {
+      var _d;
+      setSyncSt("syncing");
+      let d = null;
+      // Try Firebase first
+      if (FB_OK) {
+        try {
+          d = await cloudLoad();
+          setSyncSt("synced");
+        } catch {
+          setSyncSt("error");
+        }
+      }
+      // Fall back to localStorage
+      if (!d) d = load();
+      if (!((_d = d) !== null && _d !== void 0 && (_d = _d.admin) !== null && _d !== void 0 && _d.hash)) {
+        setSc("setup");
+        return;
+      }
+      setData(d);
+      setSc("who");
+      // Real-time listener for changes from other devices
+      if (FB_OK) {
+        var _familyRef3;
+        (_familyRef3 = familyRef()) === null || _familyRef3 === void 0 || _familyRef3.onSnapshot(snap => {
+          if (snap.exists && !snap.metadata.hasPendingWrites) {
+            const remote = snap.data();
+            setData(remote);
+            save(remote); // cache locally
+            setSyncSt("synced");
+          }
+        }, () => setSyncSt("error"));
+      }
+    };
+    init();
+  }, []);
+  const persist = d => {
+    setData(d);
+    save(d); // localStorage (instant)
+    if (FB_OK) {
+      cloudSave(d);
+      setSyncSt("syncing");
+      setTimeout(() => setSyncSt("synced"), 1500);
+    }
+  };
+
+  /* ── SETUP (first launch): create admin ── */
+  const doSetup = async ({
+    name,
+    pwd,
+    email
+  }) => {
+    const hash = await hashPwd(pwd);
+    const d = {
+      admin: {
+        name,
+        hash,
+        email
+      },
+      categories: DEFAULT_CATS,
+      members: []
+    };
+    persist(d);
+    setSc("who");
+  };
+
+  /* ── SELECT WHO ── */
+  const selectWho = w => {
+    setWho(w);
+    setErr("");
+    setSc("pwd");
+  };
+
+  /* ── LOGIN ── */
+  const doLogin = async pwd => {
+    if (who.role === "admin") {
+      const h = await hashPwd(pwd);
+      if (h === data.admin.hash) {
+        setSc("admin");
+      } else setErr("Contraseña incorrecta.");
+    } else {
+      const m = data.members.find(m => m.id === who.id);
+      const h = await hashPwd(pwd);
+      if (h === m.hash) {
+        setSc("member");
+      } else setErr("Contraseña incorrecta.");
+    }
+  };
+
+  /* ── FORGOT ── */
+  const doForgot = async email => {
+    let target = null;
+    if (who.role === "admin") {
+      var _data$admin$email;
+      if (email.toLowerCase() === ((_data$admin$email = data.admin.email) === null || _data$admin$email === void 0 ? void 0 : _data$admin$email.toLowerCase())) target = {
+        name: data.admin.name || "Admin",
+        email
+      };
+    } else {
+      var _m$email;
+      const m = data.members.find(m => m.id === who.id);
+      if (email.toLowerCase() === ((_m$email = m.email) === null || _m$email === void 0 ? void 0 : _m$email.toLowerCase())) target = {
+        name: m.name,
+        email
+      };
+    }
+    if (!target) {
+      setErr("El correo no coincide con el registrado.");
+      return;
+    }
+    const code = genCode();
+    sessionStorage.setItem("rc", JSON.stringify({
+      code,
+      who,
+      exp: Date.now() + 600000
+    }));
+    if (EJ_OK) {
+      try {
+        await emailjs.send(EJ_SVC, EJ_TPL, {
+          to_email: email,
+          recovery_code: code,
+          user_name: target.name
+        }, EJ_KEY);
+        setInf(`Código enviado a ${email}`);
+        setErr("");
+        setSc("verify");
+      } catch {
+        setErr("Error al enviar. Verifica la configuración de EmailJS.");
+      }
+    } else {
+      setInf(`[DEMO] Código: ${code}`);
+      setSc("verify");
+    }
+  };
+
+  /* ── VERIFY ── */
+  const doVerify = async (code, newPwd) => {
+    const rc = JSON.parse(sessionStorage.getItem("rc") || "null");
+    if (!rc || Date.now() > rc.exp) {
+      setErr("Código expirado. Solicita uno nuevo.");
+      return;
+    }
+    if (code !== rc.code) {
+      setErr("Código incorrecto.");
+      return;
+    }
+    const hash = await hashPwd(newPwd);
+    let d = {
+      ...data
+    };
+    if (rc.who.role === "admin") d.admin = {
+      ...d.admin,
+      hash
+    };else d.members = d.members.map(m => m.id === rc.who.id ? {
+      ...m,
+      hash
+    } : m);
+    persist(d);
+    sessionStorage.removeItem("rc");
+    setInf("¡Contraseña actualizada!");
+    setSc("pwd");
+    setErr("");
+  };
+
+  /* ── CHANGE PASSWORD (from inside app) ── */
+  const doChangePwd = async (oldPwd, newPwd, targetId) => {
+    const oldH = await hashPwd(oldPwd);
+    const newH = await hashPwd(newPwd);
+    let correct = false,
+      d = {
+        ...data
+      };
+    if (!targetId) {
+      if (oldH === d.admin.hash) {
+        correct = true;
+        d.admin = {
+          ...d.admin,
+          hash: newH
+        };
+      }
+    } else {
+      const m = d.members.find(m => m.id === targetId);
+      if (m && oldH === m.hash) {
+        correct = true;
+        d.members = d.members.map(mm => mm.id === targetId ? {
+          ...mm,
+          hash: newH
+        } : mm);
+      }
+    }
+    if (!correct) return "Contraseña actual incorrecta.";
+    persist(d);
+    return null;
+  };
+
+  /* ── Admin: set/reset member password ── */
+  const doSetMemberPwd = async (memberId, newPwd) => {
+    const hash = await hashPwd(newPwd);
+    const d = {
+      ...data,
+      members: data.members.map(m => m.id === memberId ? {
+        ...m,
+        hash
+      } : m)
+    };
+    persist(d);
+  };
+
+  /* ── Admin: add member ── */
+  const addMember = async ({
+    name,
+    avatar,
+    pwd,
+    email
+  }) => {
+    const hash = await hashPwd(pwd);
+    const color = PALETTE[data.members.length % PALETTE.length];
+    const d = {
+      ...data,
+      members: [...data.members, BLANK_MEMBER({
+        name,
+        avatar,
+        color,
+        hash,
+        email
+      })]
+    };
+    persist(d);
+  };
+  const doRegister = async ({
+    name,
+    avatar,
+    pwd,
+    email
+  }) => {
+    // Check name not already taken
+    if (data.members.some(m => m.name.toLowerCase() === name.trim().toLowerCase())) return "Ya existe un integrante con ese nombre.";
+    await addMember({
+      name: name.trim(),
+      avatar,
+      pwd,
+      email
+    });
+    // Auto-login the new member
+    const d = load(); // re-read after save
+    const newM = d.members.find(m => m.name.toLowerCase() === name.trim().toLowerCase());
+    if (newM) {
+      setData(d);
+      setWho({
+        role: "member",
+        id: newM.id
+      });
+      setSc("member");
+    } else setSc("who");
+    return null;
+  };
+  const delMember = id => {
+    const d = {
+      ...data,
+      members: data.members.filter(m => m.id !== id)
+    };
+    persist(d);
+  };
+  const doUpdateAdmin = async ({
+    name,
+    email,
+    oldPwd,
+    newPwd
+  }) => {
+    if (oldPwd) {
+      const oldH = await hashPwd(oldPwd);
+      if (oldH !== data.admin.hash) return "Contraseña actual incorrecta.";
+    }
+    const hash = newPwd ? await hashPwd(newPwd) : data.admin.hash;
+    const d = {
+      ...data,
+      admin: {
+        ...data.admin,
+        name: name.trim(),
+        email: email.trim(),
+        hash
+      }
+    };
+    persist(d);
+    return null;
+  };
+
+  /* ── Expense/income ops (passed down) ── */
+  const updMember = (id, fn) => {
+    const d = {
+      ...data,
+      members: data.members.map(m => m.id === id ? fn(m) : m)
+    };
+    persist(d);
+  };
+  const logout = () => {
+    setWho(null);
+    setErr("");
+    setInf("");
+    setSc("who");
+  };
+  const currentMember = (who === null || who === void 0 ? void 0 : who.role) === "member" ? data === null || data === void 0 ? void 0 : data.members.find(m => m.id === who.id) : null;
+  if (sc === "loading") return /*#__PURE__*/React.createElement(Splash, null);
+  if (sc === "setup") return /*#__PURE__*/React.createElement(SetupScreen, {
+    onSetup: doSetup
+  });
+  if (sc === "who") return /*#__PURE__*/React.createElement(WhoScreen, {
+    data: data,
+    onSelect: selectWho,
+    onRegister: () => setSc("register")
+  });
+  if (sc === "register") return /*#__PURE__*/React.createElement(RegisterScreen, {
+    onBack: () => setSc("who"),
+    onRegister: doRegister,
+    existingNames: data.members.map(m => m.name)
+  });
+  if (sc === "pwd") return /*#__PURE__*/React.createElement(PwdScreen, {
+    who: who,
+    data: data,
+    onLogin: doLogin,
+    onForgot: () => {
+      setErr("");
+      setSc("forgot");
+    },
+    onBack: () => {
+      setErr("");
+      setSc("who");
+    },
+    error: err,
+    info: inf,
+    onClearInfo: () => setInf("")
+  });
+  if (sc === "forgot") return /*#__PURE__*/React.createElement(ForgotScreen, {
+    who: who,
+    data: data,
+    onSend: doForgot,
+    onBack: () => {
+      setErr("");
+      setSc("pwd");
+    },
+    error: err
+  });
+  if (sc === "verify") return /*#__PURE__*/React.createElement(VerifyScreen, {
+    onVerify: doVerify,
+    onBack: () => setSc("forgot"),
+    info: inf,
+    error: err
+  });
+  if (sc === "admin") return /*#__PURE__*/React.createElement(AdminApp, {
+    data: data,
+    onUpdate: persist,
+    onUpdateAdmin: doUpdateAdmin,
+    addMember: addMember,
+    delMember: delMember,
+    onChangePwd: doChangePwd,
+    onSetMemberPwd: doSetMemberPwd,
+    onLogout: logout,
+    updMember: updMember,
+    syncSt: syncSt
+  });
+  if (sc === "member" && currentMember) return /*#__PURE__*/React.createElement(MemberApp, {
+    member: currentMember,
+    data: data,
+    updMember: updMember,
+    onChangePwd: (o, n) => doChangePwd(o, n, currentMember.id),
+    onLogout: logout,
+    syncSt: syncSt
+  });
+  return /*#__PURE__*/React.createElement(Splash, null);
+}
+const Splash = () => /*#__PURE__*/React.createElement("div", {
+  style: {
+    minHeight: "100vh",
+    background: BG,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#10b981",
+    fontFamily: MN,
+    fontSize: "14px",
+    letterSpacing: "3px"
+  }
+}, "CARGANDO...");
+
+/* ════════════════════════════════════════════════════════════
+   SETUP SCREEN  (first launch — create admin account)
+════════════════════════════════════════════════════════════ */
+function SetupScreen({
+  onSetup
+}) {
+  const [f, setF] = useState({
+    name: "",
+    pwd: "",
+    pwd2: "",
+    email: ""
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!f.name.trim()) {
+      setErr("Escribe un nombre.");
+      return;
+    }
+    if (f.pwd.length < 4) {
+      setErr("La contraseña debe tener al menos 4 caracteres.");
+      return;
+    }
+    if (f.pwd !== f.pwd2) {
+      setErr("Las contraseñas no coinciden.");
+      return;
+    }
+    if (!f.email.includes("@")) {
+      setErr("Correo inválido.");
+      return;
+    }
+    setBusy(true);
+    await onSetup({
+      name: f.name.trim(),
+      pwd: f.pwd,
+      email: f.email
+    });
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: "380px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: "36px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "54px",
+      marginBottom: "12px"
+    }
+  }, "\uD83D\uDCB8"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "24px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "6px"
+    }
+  }, "Control de Gastos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      color: T3
+    }
+  }, "Configura la cuenta de administrador"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginTop: "12px",
+      background: "#6366f115",
+      border: "1px solid #6366f140",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "12px",
+      color: "#a5b4fc"
+    }
+  }, /*#__PURE__*/React.createElement(IShield, {
+    s: 13
+  }), " El administrador puede ver todos los integrantes y gestionar contrase\xF1as")), /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Tu nombre"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Ej: Pap\xE1, Mam\xE1, Admin...",
+    value: f.name,
+    onChange: e => upd("name", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a de administrador"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: f.pwd,
+    onChange: e => upd("pwd", e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Repite la contrase\xF1a",
+    value: f.pwd2,
+    onChange: e => upd("pwd2", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Correo de recuperaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    style: {
+      ...inp(),
+      marginBottom: "16px"
+    },
+    placeholder: "tu@correo.com",
+    value: f.email,
+    onChange: e => upd("email", e.target.value)
+  }), err && /*#__PURE__*/React.createElement(Err, {
+    msg: err
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    color: "#6366f1",
+    label: "Crear cuenta de administrador \u2192"
+  }))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   WHO SCREEN  (select user)
+════════════════════════════════════════════════════════════ */
+/* ════════════════════════════════════════════════════════════
+   REGISTER SCREEN  (self-registration for new members)
+════════════════════════════════════════════════════════════ */
+function RegisterScreen({
+  onBack,
+  onRegister,
+  existingNames
+}) {
+  const [f, setF] = useState({
+    name: "",
+    avatar: "👦",
+    pwd: "",
+    pwd2: "",
+    email: ""
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!f.name.trim()) {
+      setErr("Escribe tu nombre.");
+      return;
+    }
+    if (existingNames.some(n => n.toLowerCase() === f.name.trim().toLowerCase())) {
+      setErr("Ese nombre ya está en uso. Elige otro.");
+      return;
+    }
+    if (f.pwd.length < 4) {
+      setErr("La contraseña debe tener al menos 4 caracteres.");
+      return;
+    }
+    if (f.pwd !== f.pwd2) {
+      setErr("Las contraseñas no coinciden.");
+      return;
+    }
+    if (!f.email.includes("@")) {
+      setErr("Ingresa un correo válido.");
+      return;
+    }
+    setBusy(true);
+    const result = await onRegister(f);
+    if (result) {
+      setErr(result);
+      setBusy(false);
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: "380px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "#152236",
+      border: "none",
+      borderRadius: "10px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      color: T2,
+      fontFamily: FF,
+      fontSize: "13px",
+      marginBottom: "28px",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement(IBack, {
+    s: 14
+  }), " Volver"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: "28px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "48px",
+      marginBottom: "12px"
+    }
+  }, "\u2728"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "24px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "6px"
+    }
+  }, "Crear mi cuenta"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      color: T3
+    }
+  }, "Ingresa tus datos para registrarte")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: SURF,
+      borderRadius: "18px",
+      padding: "24px",
+      border: `1px solid ${BRD}`
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Elige tu avatar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "16px",
+      flexWrap: "wrap"
+    }
+  }, ["👨", "👩", "👦", "👧", "👴", "👵", "🧑", "🧒", "👼", "🦸"].map(a => /*#__PURE__*/React.createElement("button", {
+    key: a,
+    onClick: () => upd("avatar", a),
+    style: {
+      width: "44px",
+      height: "44px",
+      borderRadius: "11px",
+      border: f.avatar === a ? "2px solid #10b981" : "2px solid #1e3354",
+      background: f.avatar === a ? "#10b98118" : "#152236",
+      fontSize: "22px",
+      cursor: "pointer"
+    }
+  }, a))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Tu nombre"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "\xBFC\xF3mo te llamas?",
+    value: f.name,
+    onChange: e => upd("name", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: f.pwd,
+    onChange: e => upd("pwd", e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Repite la contrase\xF1a",
+    value: f.pwd2,
+    onChange: e => upd("pwd2", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Correo de recuperaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    style: {
+      ...inp(),
+      marginBottom: "8px"
+    },
+    placeholder: "tu@correo.com",
+    value: f.email,
+    onChange: e => upd("email", e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      marginBottom: "16px"
+    }
+  }, "Se usar\xE1 solo si olvidas tu contrase\xF1a"), err && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#ef444418",
+      border: "1px solid #ef444445",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "13px",
+      color: "#f87171",
+      marginBottom: "14px"
+    }
+  }, err), /*#__PURE__*/React.createElement("button", {
+    onClick: submit,
+    disabled: busy,
+    style: {
+      background: "#10b981",
+      color: "#000",
+      border: "none",
+      borderRadius: "12px",
+      padding: "14px",
+      fontWeight: "700",
+      fontSize: "16px",
+      cursor: "pointer",
+      width: "100%",
+      fontFamily: FF,
+      opacity: busy ? 0.6 : 1
+    }
+  }, busy ? "Creando cuenta..." : "Crear cuenta y entrar →"))));
+}
+function WhoScreen({
+  data,
+  onSelect,
+  onRegister
+}) {
+  var _data$admin;
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      fontFamily: FF,
+      padding: "0 0 50px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "50px 24px 28px",
+      textAlign: "center"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "48px",
+      marginBottom: "12px"
+    }
+  }, "\uD83D\uDCB8"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "24px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "6px"
+    }
+  }, "Control de Gastos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px",
+      color: T3
+    }
+  }, "\xBFQui\xE9n eres?")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "0 20px"
+    }
+  }, data.members.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      fontWeight: "700",
+      letterSpacing: "1px",
+      marginBottom: "12px"
+    }
+  }, "INTEGRANTES"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "10px",
+      marginBottom: "20px"
+    }
+  }, data.members.map(m => /*#__PURE__*/React.createElement("button", {
+    key: m.id,
+    className: "hcard",
+    onClick: () => onSelect({
+      role: "member",
+      id: m.id
+    }),
+    style: {
+      background: SURF,
+      border: `2px solid ${BRD}`,
+      borderRadius: "16px",
+      padding: "20px 14px",
+      cursor: "pointer",
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      gap: "10px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "56px",
+      height: "56px",
+      borderRadius: "50%",
+      background: m.color + "20",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "28px",
+      border: `2px solid ${m.color}50`
+    }
+  }, m.avatar), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      fontSize: "15px",
+      color: T1
+    }
+  }, m.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      display: "flex",
+      alignItems: "center",
+      gap: "4px"
+    }
+  }, /*#__PURE__*/React.createElement(ILock, {
+    s: 11,
+    c: T3
+  }), " Protegido"))))), /*#__PURE__*/React.createElement("button", {
+    onClick: onRegister,
+    style: {
+      background: "#10b98112",
+      border: "2px dashed #10b98145",
+      borderRadius: "16px",
+      padding: "16px 20px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      width: "100%",
+      fontFamily: FF,
+      marginBottom: "20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "48px",
+      height: "48px",
+      borderRadius: "50%",
+      background: "#10b98120",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "26px",
+      border: "2px dashed #10b98150",
+      flexShrink: 0
+    }
+  }, "\u2728"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "left"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      fontSize: "16px",
+      color: "#4ade80"
+    }
+  }, "Soy nuevo \u2014 Crear mi cuenta"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#10b981",
+      marginTop: "2px"
+    }
+  }, "Reg\xEDstrate para acceder a tu perfil"))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      fontWeight: "700",
+      letterSpacing: "1px",
+      marginBottom: "12px"
+    }
+  }, "ADMINISTRADOR"), /*#__PURE__*/React.createElement("button", {
+    className: "hcard",
+    onClick: () => onSelect({
+      role: "admin"
+    }),
+    style: {
+      background: "#6366f112",
+      border: "2px solid #6366f140",
+      borderRadius: "16px",
+      padding: "16px 20px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      width: "100%",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "48px",
+      height: "48px",
+      borderRadius: "50%",
+      background: "#6366f125",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "22px",
+      border: "2px solid #6366f150"
+    }
+  }, /*#__PURE__*/React.createElement(IShield, {
+    s: 22
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "left"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      fontSize: "16px",
+      color: "#a5b4fc"
+    }
+  }, ((_data$admin = data.admin) === null || _data$admin === void 0 ? void 0 : _data$admin.name) || "Administrador"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#6366f1",
+      marginTop: "2px"
+    }
+  }, "Vista completa familiar")))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   PASSWORD SCREEN
+════════════════════════════════════════════════════════════ */
+function PwdScreen({
+  who,
+  data,
+  onLogin,
+  onForgot,
+  onBack,
+  error,
+  info,
+  onClearInfo
+}) {
+  var _data$admin2;
+  const [pwd, setPwd] = useState("");
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const member = who.role === "member" ? data.members.find(m => m.id === who.id) : null;
+  const name = who.role === "admin" ? ((_data$admin2 = data.admin) === null || _data$admin2 === void 0 ? void 0 : _data$admin2.name) || "Administrador" : member === null || member === void 0 ? void 0 : member.name;
+  const avatar = who.role === "admin" ? null : member === null || member === void 0 ? void 0 : member.avatar;
+  const color = who.role === "admin" ? "#6366f1" : member === null || member === void 0 ? void 0 : member.color;
+  const submit = async () => {
+    setBusy(true);
+    await onLogin(pwd);
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: "360px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "#152236",
+      border: "none",
+      borderRadius: "10px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      color: T2,
+      fontFamily: FF,
+      fontSize: "13px",
+      marginBottom: "28px",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement(IBack, {
+    s: 14
+  }), " Cambiar usuario"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: "32px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "72px",
+      height: "72px",
+      borderRadius: "50%",
+      background: color + "20",
+      border: `3px solid ${color}50`,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "36px",
+      margin: "0 auto 14px"
+    }
+  }, avatar || /*#__PURE__*/React.createElement(IShield, {
+    s: 32
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "4px"
+    }
+  }, name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      color: T3
+    }
+  }, "Ingresa tu contrase\xF1a")), /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, info && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#10b98118",
+      border: "1px solid #10b98140",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "13px",
+      color: "#4ade80",
+      marginBottom: "14px",
+      display: "flex",
+      justifyContent: "space-between"
+    }
+  }, /*#__PURE__*/React.createElement("span", null, info), /*#__PURE__*/React.createElement("button", {
+    onClick: onClearInfo,
+    style: {
+      background: "none",
+      border: "none",
+      color: "#4ade80",
+      cursor: "pointer"
+    }
+  }, "\xD7")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    autoFocus: true,
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022",
+    value: pwd,
+    onChange: e => setPwd(e.target.value),
+    onKeyDown: e => e.key === "Enter" && submit()
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), error && /*#__PURE__*/React.createElement(Err, {
+    msg: error
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    disabled: !pwd,
+    color: color,
+    label: "Entrar \u2192"
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: onForgot,
+    style: {
+      background: "transparent",
+      color: T3,
+      border: "none",
+      cursor: "pointer",
+      width: "100%",
+      fontSize: "13px",
+      fontFamily: FF,
+      padding: "10px 4px 0"
+    }
+  }, "\xBFOlvidaste tu contrase\xF1a?"))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   FORGOT SCREEN
+════════════════════════════════════════════════════════════ */
+function ForgotScreen({
+  onSend,
+  onBack,
+  error
+}) {
+  const [email, setEmail] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    setBusy(true);
+    await onSend(email);
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: "360px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "#152236",
+      border: "none",
+      borderRadius: "10px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      color: T2,
+      fontFamily: FF,
+      fontSize: "13px",
+      marginBottom: "28px",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement(IBack, {
+    s: 14
+  }), " Volver"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: "28px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "48px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDD10"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "6px"
+    }
+  }, "Recuperar contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      color: T3
+    }
+  }, "Ingresa el correo que registraste")), /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, !EJ_OK && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#f59e0b15",
+      border: "1px solid #f59e0b40",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "12px",
+      color: "#fbbf24",
+      marginBottom: "12px"
+    }
+  }, "\u26A0\uFE0F EmailJS no configurado. El c\xF3digo aparecer\xE1 en pantalla."), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Correo registrado"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    style: {
+      ...inp(),
+      marginBottom: "14px"
+    },
+    placeholder: "tu@correo.com",
+    value: email,
+    onChange: e => setEmail(e.target.value)
+  }), error && /*#__PURE__*/React.createElement(Err, {
+    msg: error
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    disabled: !email.includes("@"),
+    color: "#6366f1",
+    label: busy ? "Enviando..." : "Enviar código →"
+  }))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   VERIFY SCREEN
+════════════════════════════════════════════════════════════ */
+function VerifyScreen({
+  onVerify,
+  onBack,
+  info,
+  error
+}) {
+  const [code, setCode] = useState("");
+  const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (pwd.length < 4) {
+      setErr("Mínimo 4 caracteres.");
+      return;
+    }
+    if (pwd !== pwd2) {
+      setErr("Las contraseñas no coinciden.");
+      return;
+    }
+    if (code.length !== 6) {
+      setErr("El código tiene 6 dígitos.");
+      return;
+    }
+    setBusy(true);
+    await onVerify(code, pwd);
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "24px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "100%",
+      maxWidth: "360px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "#152236",
+      border: "none",
+      borderRadius: "10px",
+      padding: "8px 14px",
+      cursor: "pointer",
+      color: T2,
+      fontFamily: FF,
+      fontSize: "13px",
+      marginBottom: "28px",
+      display: "flex",
+      alignItems: "center",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement(IBack, {
+    s: 14
+  }), " Volver"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      marginBottom: "24px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "48px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDCE8"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: T1,
+      marginBottom: "6px"
+    }
+  }, "C\xF3digo enviado"), info && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#6366f115",
+      border: "1px solid #6366f140",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "13px",
+      color: "#a5b4fc",
+      marginTop: "8px"
+    }
+  }, info)), /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "C\xF3digo de 6 d\xEDgitos"), /*#__PURE__*/React.createElement("input", {
+    inputMode: "numeric",
+    maxLength: "6",
+    style: {
+      ...inp(),
+      textAlign: "center",
+      fontSize: "26px",
+      letterSpacing: "10px",
+      fontFamily: MN,
+      marginBottom: "12px"
+    },
+    placeholder: "000000",
+    value: code,
+    onChange: e => setCode(e.target.value.replace(/\D/g, ""))
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nueva contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: pwd,
+    onChange: e => setPwd(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "14px"
+    },
+    placeholder: "Repite la contrase\xF1a",
+    value: pwd2,
+    onChange: e => setPwd2(e.target.value)
+  }), (err || error) && /*#__PURE__*/React.createElement(Err, {
+    msg: err || error
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    color: "#10b981",
+    label: busy ? "Actualizando..." : "Cambiar contraseña →"
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      textAlign: "center",
+      marginTop: "10px"
+    }
+  }, "El c\xF3digo expira en 10 minutos"))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   ADMIN APP
+════════════════════════════════════════════════════════════ */
+function AdminApp({
+  data,
+  onUpdate,
+  onUpdateAdmin,
+  addMember,
+  delMember,
+  onChangePwd,
+  onSetMemberPwd,
+  onLogout,
+  updMember,
+  syncSt
+}) {
+  const [page, setPage] = useState("home"); // home | member
+  const [mid, setMid] = useState(null);
+  const [modal, setModal] = useState(null); // addMember | categories | alerts | settings | memberPwd
+  const [toast, setToast] = useState(null);
+  const showT = (msg, color = "#10b981") => {
+    setToast({
+      msg,
+      color
+    });
+    setTimeout(() => setToast(null), 2800);
+  };
+  const cats = data.categories || DEFAULT_CATS;
+  const alerts = getAlerts(data.members);
+  const member = data.members.find(m => m.id === mid);
+  const addCat = c => {
+    onUpdate({
+      ...data,
+      categories: [...cats, c]
+    });
+    showT("Categoría creada ✓");
+  };
+  const delCat = n => onUpdate({
+    ...data,
+    categories: cats.filter(c => c.name !== n)
+  });
+  const upd = (id, fn) => updMember(id, fn);
+  if (page === "home") return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(Toast, {
+    t: toast
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "28px 22px 18px",
+      borderBottom: `1px solid ${BRD}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "flex-start"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "10px",
+      color: "#6366f1",
+      fontWeight: "700",
+      letterSpacing: "2.5px",
+      marginBottom: "5px"
+    }
+  }, "ADMINISTRADOR \xB7 ", new Date().toLocaleString("es-CL", {
+    month: "long",
+    year: "numeric"
+  }).toUpperCase()), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "22px",
+      fontWeight: "700",
+      color: T1
+    }
+  }, "Control Familiar \uD83D\uDCB8")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "7px",
+      marginTop: "2px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("alerts"),
+    style: {
+      position: "relative",
+      background: alerts.length ? "#ef444418" : "#152236",
+      border: `1px solid ${alerts.length ? "#ef444445" : BRD}`,
+      borderRadius: "10px",
+      padding: "8px",
+      cursor: "pointer",
+      color: alerts.length ? "#f87171" : T2,
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IBell, {
+    s: 17,
+    c: alerts.length ? "#f87171" : T2
+  }), alerts.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "absolute",
+      top: "-5px",
+      right: "-5px",
+      background: "#ef4444",
+      color: "white",
+      borderRadius: "50%",
+      width: "17px",
+      height: "17px",
+      fontSize: "10px",
+      fontWeight: "700",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      border: "2px solid " + BG
+    }
+  }, alerts.length)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("categories"),
+    style: {
+      background: "#152236",
+      border: `1px solid ${BRD}`,
+      borderRadius: "10px",
+      padding: "8px",
+      cursor: "pointer",
+      color: T2,
+      display: "flex"
+    },
+    title: "Categor\xEDas"
+  }, /*#__PURE__*/React.createElement(IGear, {
+    s: 17
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("editProfile"),
+    style: {
+      background: "#6366f115",
+      border: "1px solid #6366f140",
+      borderRadius: "10px",
+      padding: "8px",
+      cursor: "pointer",
+      color: "#a5b4fc",
+      display: "flex"
+    },
+    title: "Editar perfil"
+  }, /*#__PURE__*/React.createElement(IShield, {
+    s: 17
+  })), /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "#152236",
+      border: `1px solid ${BRD}`,
+      borderRadius: "10px",
+      padding: "8px",
+      cursor: "pointer",
+      color: T2,
+      display: "flex"
+    },
+    title: "Cerrar sesi\xF3n"
+  }, /*#__PURE__*/React.createElement(ILogout, {
+    s: 17
+  })))), FB_OK && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "6px",
+      marginTop: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "7px",
+      height: "7px",
+      borderRadius: "50%",
+      background: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
+    }
+  }, syncSt === "synced" ? "Sincronizado con la nube ☁️" : syncSt === "syncing" ? "Sincronizando..." : "Solo local")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr 1fr",
+      gap: "8px",
+      marginTop: "16px"
+    }
+  }, [{
+    l: "INGRESOS",
+    v: fmt(data.members.reduce((a, m) => a + mInc(m, thisMonth()), 0)),
+    c: "#22c55e"
+  }, {
+    l: "GASTOS",
+    v: fmt(data.members.reduce((a, m) => a + mExp(m, thisMonth()), 0)),
+    c: "#f87171"
+  }, {
+    l: "MIEMBROS",
+    v: data.members.length,
+    c: "#818cf8"
+  }].map(({
+    l,
+    v,
+    c
+  }) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      background: c + "10",
+      borderRadius: "12px",
+      padding: "10px",
+      border: `1px solid ${c}25`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "9px",
+      color: c,
+      fontWeight: "700",
+      letterSpacing: "1px",
+      marginBottom: "3px"
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: "14px",
+      color: c
+    }
+  }, v))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "18px 22px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      fontWeight: "700",
+      letterSpacing: "1px"
+    }
+  }, "INTEGRANTES"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("addMember"),
+    style: {
+      background: "#10b981",
+      color: "#000",
+      border: "none",
+      borderRadius: "8px",
+      padding: "7px 13px",
+      fontWeight: "700",
+      fontSize: "13px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(IPlus, {
+    s: 13
+  }), " Agregar")), !data.members.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "40px 20px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "44px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px"
+    }
+  }, "Agrega integrantes de tu familia"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#475569",
+      marginTop: "6px"
+    }
+  }, "Cada uno tendr\xE1 su propia clave")), data.members.map(m => {
+    const inc = mInc(m, thisMonth()),
+      exp = mExp(m, thisMonth()),
+      bal = inc - exp;
+    const al = bAlert(m, thisMonth());
+    const ma = alerts.filter(a => a.member.id === m.id);
+    const pct = inc > 0 ? Math.min(exp / inc * 100, 100) : 0;
+    return /*#__PURE__*/React.createElement("div", {
+      key: m.id,
+      className: "hcard",
+      onClick: () => {
+        setMid(m.id);
+        setPage("member");
+      },
+      style: {
+        ...card(),
+        cursor: "pointer"
+      },
+      onMouseEnter: e => e.currentTarget.style.borderColor = m.color,
+      onMouseLeave: e => e.currentTarget.style.borderColor = BRD
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        marginBottom: "10px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "relative",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "46px",
+        height: "46px",
+        borderRadius: "50%",
+        background: m.color + "20",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "22px",
+        border: `2px solid ${m.color}45`
+      }
+    }, m.avatar), al && /*#__PURE__*/React.createElement("div", {
+      className: al === "exceeded" ? "pulse" : "",
+      style: {
+        position: "absolute",
+        top: "-2px",
+        right: "-2px",
+        width: "12px",
+        height: "12px",
+        borderRadius: "50%",
+        background: al === "exceeded" ? "#ef4444" : "#f59e0b",
+        border: "2px solid " + BG
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "700",
+        fontSize: "16px",
+        color: T1
+      }
+    }, m.name), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: T3,
+        marginTop: "2px"
+      }
+    }, (m.expenses || []).filter(e => e.date.startsWith(thisMonth())).length, " gastos", ma.length > 0 && /*#__PURE__*/React.createElement("span", {
+      style: {
+        color: ma.some(a => a.urg === "hoy" || a.urg === "urgente") ? "#f87171" : "#fbbf24"
+      }
+    }, " \xB7 ", ma.length, " cuota", ma.length > 1 ? "s" : "", " pr\xF3xima", ma.length > 1 ? "s" : ""))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: bal >= 0 ? "#22c55e15" : "#ef444415",
+        border: `1px solid ${bal >= 0 ? "#22c55e30" : "#ef444430"}`,
+        borderRadius: "10px",
+        padding: "6px 10px",
+        textAlign: "right"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "9px",
+        color: bal >= 0 ? "#22c55e" : "#f87171",
+        fontWeight: "700",
+        letterSpacing: "1px"
+      }
+    }, "BALANCE"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        fontSize: "13px",
+        color: bal >= 0 ? "#22c55e" : "#f87171"
+      }
+    }, bal >= 0 ? "+" : "-", fmt(Math.abs(bal)))), /*#__PURE__*/React.createElement("button", {
+      onClick: e => {
+        e.stopPropagation();
+        delMember(m.id);
+      },
+      className: "delbtn",
+      style: {
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "#ef4444",
+        padding: "4px",
+        display: "flex"
+      }
+    }, /*#__PURE__*/React.createElement(ITrash, {
+      s: 14
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "8px",
+        marginBottom: inc > 0 ? "10px" : "0"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        background: "#22c55e10",
+        borderRadius: "8px",
+        padding: "7px 10px",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px"
+      }
+    }, /*#__PURE__*/React.createElement(IUp, {
+      s: 12,
+      c: "#22c55e"
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        fontSize: "13px",
+        color: "#22c55e"
+      }
+    }, fmt(inc))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        background: "#f8717110",
+        borderRadius: "8px",
+        padding: "7px 10px",
+        display: "flex",
+        alignItems: "center",
+        gap: "6px"
+      }
+    }, /*#__PURE__*/React.createElement(IDn, {
+      s: 12,
+      c: "#f87171"
+    }), /*#__PURE__*/React.createElement("span", {
+      style: {
+        ...mono,
+        fontSize: "13px",
+        color: "#f87171"
+      }
+    }, fmt(exp)))), inc > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "5px",
+        background: "#152236",
+        borderRadius: "3px",
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "100%",
+        width: `${pct}%`,
+        background: pct >= 100 ? "#ef4444" : pct >= 80 ? "#f97316" : m.color,
+        borderRadius: "3px"
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        color: T3,
+        marginTop: "4px"
+      }
+    }, Math.round(pct), "% del ingreso gastado")));
+  })), modal === "addMember" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(AddMemberModal, {
+    cats: cats,
+    onClose: () => setModal(null),
+    onAdd: async f => {
+      await addMember(f);
+      setModal(null);
+      showT(`${f.name} agregado ✓`);
+    }
+  }))), modal === "categories" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(CategoriesModal, {
+    cats: cats,
+    onClose: () => setModal(null),
+    onAdd: addCat,
+    onDelete: delCat
+  }))), modal === "alerts" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(AlertsPanel, {
+    alerts: alerts,
+    onClose: () => setModal(null),
+    onGo: id => {
+      setMid(id);
+      setPage("member");
+      setModal(null);
+    }
+  }))), modal === "editProfile" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(EditAdminProfileModal, {
+    admin: data.admin,
+    onClose: () => setModal(null),
+    onSave: async f => {
+      const err = await onUpdateAdmin(f);
+      if (!err) {
+        setModal(null);
+        showT("Perfil actualizado ✓");
+      }
+      return err;
+    }
+  }))));
+
+  /* Admin → member detail */
+  if (page === "member" && member) return /*#__PURE__*/React.createElement(MemberDetail, {
+    member: member,
+    cats: cats,
+    isAdmin: true,
+    onBack: () => setPage("home"),
+    onUpdate: fn => upd(mid, fn),
+    onSetPwd: newPwd => onSetMemberPwd(mid, newPwd),
+    toast: toast,
+    showT: showT
+  });
+  return null;
+}
+
+/* ════════════════════════════════════════════════════════════
+   MEMBER APP  (solo ve sus propios datos)
+════════════════════════════════════════════════════════════ */
+function MemberApp({
+  member,
+  data,
+  updMember,
+  onChangePwd,
+  onLogout,
+  syncSt
+}) {
+  const [toast, setToast] = useState(null);
+  const showT = (msg, color = "#10b981") => {
+    setToast({
+      msg,
+      color
+    });
+    setTimeout(() => setToast(null), 2800);
+  };
+  const cats = data.categories || DEFAULT_CATS;
+  return /*#__PURE__*/React.createElement(MemberDetail, {
+    member: member,
+    cats: cats,
+    isAdmin: false,
+    onBack: null,
+    onUpdate: fn => updMember(member.id, fn),
+    onChangePwd: onChangePwd,
+    onLogout: onLogout,
+    syncSt: syncSt,
+    toast: toast,
+    showT: showT
+  });
+}
+
+/* ════════════════════════════════════════════════════════════
+   MEMBER DETAIL  (shared by admin view and member self-view)
+════════════════════════════════════════════════════════════ */
+function MemberDetail({
+  member,
+  cats,
+  isAdmin,
+  onBack,
+  onUpdate,
+  onSetPwd,
+  onChangePwd,
+  onLogout,
+  syncSt,
+  toast,
+  showT
+}) {
+  const [tab, setTab] = useState("resumen");
+  const [mon, setMon] = useState(thisMonth());
+  const [modal, setModal] = useState(null); // addExp|addInc|changePwd|setPwd
+  const [err, setErr] = useState("");
+  const filtExp = (member.expenses || []).filter(e => e.date.startsWith(mon));
+  const filtInc = (member.incomes || []).filter(i => i.date.startsWith(mon));
+  const catTot = filtExp.reduce((a, e) => {
+    a[e.category] = (a[e.category] || 0) + (e.isCredit ? e.installmentAmount : e.amount);
+    return a;
+  }, {});
+  const totalExp = Object.values(catTot).reduce((a, v) => a + v, 0);
+  const totalInc = filtInc.reduce((s, i) => s + i.amount, 0);
+  const balance = totalInc - totalExp;
+  const credits = (member.expenses || []).filter(e => e.isCredit);
+  const pieData = Object.entries(catTot).map(([n, v]) => {
+    var _cats$find, _cats$find2;
+    return {
+      name: n,
+      value: v,
+      color: ((_cats$find = cats.find(c => c.name === n)) === null || _cats$find === void 0 ? void 0 : _cats$find.color) || "#94a3b8",
+      icon: ((_cats$find2 = cats.find(c => c.name === n)) === null || _cats$find2 === void 0 ? void 0 : _cats$find2.icon) || "📦"
+    };
+  }).sort((a, b) => b.value - a.value);
+  const barData = (() => {
+    const a = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      const k = d.toISOString().slice(0, 7);
+      a.push({
+        mes: d.toLocaleString("es-CL", {
+          month: "short"
+        }),
+        gastos: (member.expenses || []).filter(e => e.date.startsWith(k)).reduce((s, e) => s + (e.isCredit ? e.installmentAmount : e.amount), 0),
+        ingresos: (member.incomes || []).filter(i => i.date.startsWith(k)).reduce((s, i) => s + i.amount, 0)
+      });
+    }
+    return a;
+  })();
+  const TABS = [["resumen", "📊"], ["ingresos", "💰"], ["gastos", "📋"], ["presupuestos", "🎯"], ["fijos", "📅"], ["reportes", "📈"]];
+  const addExp = e => {
+    onUpdate(m => ({
+      ...m,
+      expenses: [{
+        ...e,
+        id: genId()
+      }, ...m.expenses]
+    }));
+    setModal(null);
+    showT("Gasto agregado ✓");
+  };
+  const delExp = id => onUpdate(m => ({
+    ...m,
+    expenses: m.expenses.filter(e => e.id !== id)
+  }));
+  const editExp = (id, upd) => onUpdate(m => ({
+    ...m,
+    expenses: m.expenses.map(e => e.id === id ? {
+      ...e,
+      ...upd
+    } : e)
+  }));
+  const addInc = i => {
+    onUpdate(m => ({
+      ...m,
+      incomes: [{
+        ...i,
+        id: genId()
+      }, ...(m.incomes || [])]
+    }));
+    setModal(null);
+    showT("Ingreso registrado ✓", "#22c55e");
+  };
+  const delInc = id => onUpdate(m => ({
+    ...m,
+    incomes: (m.incomes || []).filter(i => i.id !== id)
+  }));
+  const editInc = (id, upd) => onUpdate(m => ({
+    ...m,
+    incomes: (m.incomes || []).map(i => i.id === id ? {
+      ...i,
+      ...upd
+    } : i)
+  }));
+  const saveBud = (cat, amt) => onUpdate(m => ({
+    ...m,
+    budgets: {
+      ...m.budgets,
+      [cat]: Number(amt)
+    }
+  }));
+  const delBud = cat => onUpdate(m => {
+    const b = {
+      ...m.budgets
+    };
+    delete b[cat];
+    return {
+      ...m,
+      budgets: b
+    };
+  });
+  const addRec = r => {
+    onUpdate(m => ({
+      ...m,
+      recurring: [...(m.recurring || []), {
+        ...r,
+        id: genId(),
+        active: true
+      }]
+    }));
+    showT("Gasto fijo guardado ✓");
+  };
+  const delRec = id => onUpdate(m => ({
+    ...m,
+    recurring: (m.recurring || []).filter(r => r.id !== id)
+  }));
+  const togRec = id => onUpdate(m => ({
+    ...m,
+    recurring: (m.recurring || []).map(r => r.id === id ? {
+      ...r,
+      active: !r.active
+    } : r)
+  }));
+  const applyRec = () => {
+    const active = (member.recurring || []).filter(r => r.active);
+    if (!active.length) {
+      showT("No hay gastos fijos activos", "#f97316");
+      return;
+    }
+    const [y, mn] = mon.split("-").map(Number);
+    const dim = new Date(y, mn, 0).getDate();
+    const toAdd = active.filter(r => !(member.expenses || []).some(e => e.recurringId === r.id && e.date.startsWith(mon)));
+    if (!toAdd.length) {
+      showT("Ya aplicados este mes", "#f97316");
+      return;
+    }
+    onUpdate(m => ({
+      ...m,
+      expenses: [...toAdd.map(r => ({
+        id: genId(),
+        description: r.description,
+        amount: r.amount,
+        category: r.category,
+        date: `${mon}-${String(Math.min(r.day, dim)).padStart(2, "0")}`,
+        isCredit: false,
+        totalInstallments: 1,
+        currentInstallment: 1,
+        installmentAmount: r.amount,
+        recurringId: r.id,
+        isRecurring: true
+      })), ...m.expenses]
+    }));
+    showT(`${toAdd.length} fijo${toAdd.length > 1 ? "s" : ""} aplicado${toAdd.length > 1 ? "s" : ""} ✓`);
+  };
+  const exportExcel = () => {
+    const wb = XLSX.utils.book_new();
+    const er = filtExp.map(e => ({
+      Fecha: e.date,
+      Descripción: e.description,
+      Categoría: e.category,
+      "Monto": e.isCredit ? e.installmentAmount : e.amount,
+      "Cuota": e.isCredit ? `${e.currentInstallment}/${e.totalInstallments}` : "-",
+      "Total compra": e.amount
+    }));
+    const ir = filtInc.map(i => ({
+      Fecha: i.date,
+      Descripción: i.description,
+      Categoría: i.category,
+      Monto: i.amount
+    }));
+    if (er.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(er), "Gastos");
+    if (ir.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(ir), "Ingresos");
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{
+      Concepto: "Ingresos",
+      Monto: totalInc
+    }, {
+      Concepto: "Gastos",
+      Monto: totalExp
+    }, {
+      Concepto: "Balance",
+      Monto: balance
+    }]), "Resumen");
+    XLSX.writeFile(wb, `${member.name}_${mon}.xlsx`);
+    showT("Excel descargado ✓");
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      minHeight: "100vh",
+      background: BG,
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(Toast, {
+    t: toast
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: SURF,
+      padding: "14px 20px 0",
+      borderBottom: `1px solid ${BRD}`,
+      position: "sticky",
+      top: 0,
+      zIndex: 20
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "12px"
+    }
+  }, onBack && /*#__PURE__*/React.createElement("button", {
+    onClick: onBack,
+    style: {
+      background: "#152236",
+      border: "none",
+      borderRadius: "9px",
+      padding: "8px",
+      cursor: "pointer",
+      color: T2,
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(IBack, {
+    s: 16
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "36px",
+      height: "36px",
+      borderRadius: "50%",
+      background: member.color + "20",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "19px",
+      border: `2px solid ${member.color}45`
+    }
+  }, member.avatar), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      fontSize: "16px",
+      color: T1
+    }
+  }, member.name, isAdmin && /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "11px",
+      color: "#6366f1",
+      fontWeight: "600",
+      marginLeft: "8px",
+      background: "#6366f115",
+      padding: "2px 8px",
+      borderRadius: "6px"
+    }
+  }, "ADMIN")), FB_OK && /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      marginTop: "2px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "6px",
+      height: "6px",
+      borderRadius: "50%",
+      background: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "10px",
+      color: syncSt === "synced" ? "#22c55e" : syncSt === "syncing" ? "#f59e0b" : "#64748b"
+    }
+  }, syncSt === "synced" ? "Sincronizado" : "Sincronizando..."))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "6px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("addIncome"),
+    style: {
+      background: "#22c55e20",
+      color: "#22c55e",
+      border: "1px solid #22c55e40",
+      borderRadius: "8px",
+      padding: "7px 10px",
+      fontWeight: "700",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(IUp, {
+    s: 12,
+    c: "#22c55e"
+  }), " Ingreso"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal("addExpense"),
+    style: {
+      background: member.color,
+      color: "#000",
+      border: "none",
+      borderRadius: "8px",
+      padding: "7px 10px",
+      fontWeight: "700",
+      fontSize: "12px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "4px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(IDn, {
+    s: 12,
+    c: "#000"
+  }), " Gasto"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setModal(isAdmin ? "setPwd" : "changePwd"),
+    style: {
+      background: "#152236",
+      border: `1px solid ${BRD}`,
+      borderRadius: "8px",
+      padding: "7px",
+      cursor: "pointer",
+      color: T2,
+      display: "flex"
+    },
+    title: isAdmin ? "Resetear contraseña" : "Cambiar contraseña"
+  }, /*#__PURE__*/React.createElement(ILock, {
+    s: 15
+  })), !isAdmin && /*#__PURE__*/React.createElement("button", {
+    onClick: onLogout,
+    style: {
+      background: "#152236",
+      border: `1px solid ${BRD}`,
+      borderRadius: "8px",
+      padding: "7px",
+      cursor: "pointer",
+      color: T2,
+      display: "flex"
+    },
+    title: "Cerrar sesi\xF3n"
+  }, /*#__PURE__*/React.createElement(ILogout, {
+    s: 15
+  })))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      overflowX: "auto"
+    }
+  }, TABS.map(([t, ic]) => /*#__PURE__*/React.createElement("button", {
+    key: t,
+    onClick: () => setTab(t),
+    style: {
+      flexShrink: 0,
+      background: "transparent",
+      border: "none",
+      borderBottom: tab === t ? `2px solid ${member.color}` : "2px solid transparent",
+      padding: "8px 10px",
+      cursor: "pointer",
+      color: tab === t ? member.color : T3,
+      fontWeight: tab === t ? "700" : "400",
+      fontSize: "13px",
+      fontFamily: FF,
+      marginBottom: "-1px",
+      whiteSpace: "nowrap"
+    }
+  }, ic, " ", t.charAt(0).toUpperCase() + t.slice(1))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      padding: "16px 20px 90px"
+    }
+  }, tab !== "fijos" && tab !== "reportes" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      marginBottom: "14px",
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: "month",
+    value: mon,
+    onChange: e => setMon(e.target.value),
+    style: {
+      ...inp(),
+      width: "auto",
+      padding: "8px 12px",
+      fontSize: "14px"
+    }
+  }), (tab === "gastos" || tab === "ingresos") && /*#__PURE__*/React.createElement("button", {
+    onClick: exportExcel,
+    style: {
+      background: "#10b98120",
+      color: "#10b981",
+      border: "1px solid #10b98140",
+      borderRadius: "9px",
+      padding: "8px 12px",
+      fontWeight: "600",
+      fontSize: "13px",
+      cursor: "pointer",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontFamily: FF
+    }
+  }, /*#__PURE__*/React.createElement(IDown, {
+    s: 14
+  }), " Excel")), tab === "resumen" && /*#__PURE__*/React.createElement(ResumenTab, {
+    member: member,
+    cats: cats,
+    mon: mon,
+    totalInc: totalInc,
+    totalExp: totalExp,
+    balance: balance,
+    filtExp: filtExp,
+    filtInc: filtInc,
+    pieData: pieData,
+    barData: barData,
+    credits: credits
+  }), tab === "ingresos" && /*#__PURE__*/React.createElement(IngresosTab, {
+    filtInc: filtInc,
+    onDel: delInc,
+    onEdit: editInc
+  }), tab === "gastos" && /*#__PURE__*/React.createElement(GastosTab, {
+    filtExp: filtExp,
+    cats: cats,
+    onDel: delExp,
+    onEdit: editExp
+  }), tab === "presupuestos" && /*#__PURE__*/React.createElement(BudgetsTab, {
+    member: member,
+    catTotals: catTot,
+    cats: cats,
+    onSave: saveBud,
+    onDel: delBud
+  }), tab === "fijos" && /*#__PURE__*/React.createElement(RecurringTab, {
+    member: member,
+    cats: cats,
+    mon: mon,
+    onAdd: addRec,
+    onDel: delRec,
+    onToggle: togRec,
+    onApply: applyRec
+  }), tab === "reportes" && /*#__PURE__*/React.createElement(ReportesTab, {
+    member: member,
+    cats: cats
+  })), modal === "addExpense" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(AddExpenseModal, {
+    member: member,
+    cats: cats,
+    onClose: () => setModal(null),
+    onAdd: addExp
+  }))), modal === "addIncome" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(AddIncomeModal, {
+    member: member,
+    onClose: () => setModal(null),
+    onAdd: addInc
+  }))), modal === "changePwd" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(ChangePwdModal, {
+    onClose: () => setModal(null),
+    onSave: async (o, n) => {
+      const e = await onChangePwd(o, n);
+      if (e) setErr(e);else {
+        setModal(null);
+        showT("Contraseña actualizada ✓");
+      }
+    },
+    error: err
+  }))), modal === "setPwd" && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...overlay,
+      position: "fixed"
+    },
+    onClick: e => e.target === e.currentTarget && setModal(null)
+  }, /*#__PURE__*/React.createElement("div", {
+    style: sheet
+  }, /*#__PURE__*/React.createElement(SetPwdModal, {
+    memberName: member.name,
+    onClose: () => setModal(null),
+    onSave: async n => {
+      await onSetPwd(n);
+      setModal(null);
+      showT("Contraseña reseteada ✓");
+    }
+  }))));
+}
+
+/* ════════════════════════════════════════════════════════════
+   RESUMEN TAB
+════════════════════════════════════════════════════════════ */
+function ResumenTab({
+  member,
+  cats,
+  mon,
+  totalInc,
+  totalExp,
+  balance,
+  filtExp,
+  filtInc,
+  pieData,
+  barData,
+  credits
+}) {
+  const pct = totalInc > 0 ? Math.min(totalExp / totalInc * 100, 100) : 0;
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card(),
+      background: balance >= 0 ? "#22c55e0e" : "#ef44440e",
+      border: `1px solid ${balance >= 0 ? "#22c55e30" : "#ef444430"}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: balance >= 0 ? "#22c55e" : "#f87171",
+      fontWeight: "700",
+      letterSpacing: "1.5px",
+      textTransform: "uppercase",
+      marginBottom: "6px"
+    }
+  }, "Balance del mes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: "34px",
+      color: balance >= 0 ? "#22c55e" : "#f87171",
+      marginBottom: "6px"
+    }
+  }, balance >= 0 ? "+" : "-", fmt(Math.abs(balance))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "13px",
+      color: "#4ade80"
+    }
+  }, /*#__PURE__*/React.createElement(IUp, {
+    s: 12,
+    c: "#4ade80"
+  }), fmt(totalInc)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "13px",
+      color: T3
+    }
+  }, "vs"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "13px",
+      color: "#f87171"
+    }
+  }, /*#__PURE__*/React.createElement(IDn, {
+    s: 12,
+    c: "#f87171"
+  }), fmt(totalExp))), totalInc > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "6px",
+      background: "#152236",
+      borderRadius: "4px",
+      overflow: "hidden",
+      marginTop: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      height: "100%",
+      width: `${pct}%`,
+      background: pct >= 100 ? "#ef4444" : pct >= 80 ? "#f97316" : "#22c55e",
+      borderRadius: "4px"
+    }
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      marginTop: "4px"
+    }
+  }, Math.round(pct), "% del ingreso utilizado"))), pieData.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      fontSize: "14px",
+      color: T1,
+      marginBottom: "12px"
+    }
+  }, "Ingresos vs Gastos \u2014 6 meses"), /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 150
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: barData,
+    margin: {
+      top: 0,
+      right: 0,
+      left: -25,
+      bottom: 0
+    },
+    barGap: 3
+  }, /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "mes",
+    tick: {
+      fill: T3,
+      fontSize: 11
+    },
+    axisLine: false,
+    tickLine: false
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fill: T3,
+      fontSize: 10
+    },
+    axisLine: false,
+    tickLine: false,
+    tickFormatter: v => v >= 1000 ? `${Math.round(v / 1000)}k` : v
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: (v, n) => [fmt(v), n === "ingresos" ? "Ingresos" : "Gastos"],
+    contentStyle: {
+      background: "#0D1B2A",
+      border: `1px solid ${BRD}`,
+      borderRadius: "8px",
+      color: T1,
+      fontFamily: FF
+    }
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "ingresos",
+    fill: "#22c55e",
+    radius: [3, 3, 0, 0]
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "gastos",
+    fill: "#f87171",
+    radius: [3, 3, 0, 0]
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "14px",
+      justifyContent: "center",
+      marginTop: "6px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "12px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "2px",
+      background: "#22c55e"
+    }
+  }), "Ingresos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "12px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "2px",
+      background: "#f87171"
+    }
+  }), "Gastos"))), /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      fontSize: "14px",
+      color: T1,
+      marginBottom: "12px"
+    }
+  }, "Por categor\xEDa"), /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 185
+  }, /*#__PURE__*/React.createElement(PieChart, null, /*#__PURE__*/React.createElement(Pie, {
+    data: pieData,
+    cx: "50%",
+    cy: "50%",
+    innerRadius: 50,
+    outerRadius: 76,
+    paddingAngle: 3,
+    dataKey: "value"
+  }, pieData.map((e, i) => /*#__PURE__*/React.createElement(Cell, {
+    key: i,
+    fill: e.color
+  }))), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: v => fmt(v),
+    contentStyle: {
+      background: "#0D1B2A",
+      border: `1px solid ${BRD}`,
+      borderRadius: "8px",
+      color: T1,
+      fontFamily: FF
+    }
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "7px"
+    }
+  }, pieData.map((d, i) => /*#__PURE__*/React.createElement("div", {
+    key: i,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "12px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "7px",
+      height: "7px",
+      borderRadius: "50%",
+      background: d.color
+    }
+  }), d.icon, /*#__PURE__*/React.createElement("span", {
+    style: {
+      color: d.color,
+      fontWeight: "600"
+    }
+  }, fmt(d.value))))))), !pieData.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card(),
+      textAlign: "center",
+      padding: "40px 20px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "38px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDCCA"), /*#__PURE__*/React.createElement("div", null, "Sin gastos este mes")), credits.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: card()
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      fontSize: "14px",
+      color: T1,
+      marginBottom: "14px"
+    }
+  }, "\uD83D\uDCB3 Cuotas activas"), credits.map(e => {
+    const pct = Math.min((e.currentInstallment - 1) / e.totalInstallments * 100, 100);
+    const rem = e.totalInstallments - e.currentInstallment + 1;
+    const orig = new Date(e.date);
+    const due = new Date(orig.getFullYear(), orig.getMonth() + e.currentInstallment, orig.getDate());
+    const days = Math.ceil((due - new Date().setHours(0, 0, 0, 0)) / 86400000);
+    const urgent = days <= 7;
+    return /*#__PURE__*/React.createElement("div", {
+      key: e.id,
+      style: {
+        marginBottom: "14px",
+        paddingBottom: "14px",
+        borderBottom: `1px solid ${BRD}`
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: "7px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "6px",
+        flexWrap: "wrap"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "600",
+        fontSize: "14px",
+        color: T1
+      }
+    }, e.description), urgent && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "#ef444420",
+        color: "#f87171",
+        fontSize: "10px",
+        fontWeight: "700",
+        padding: "2px 7px",
+        borderRadius: "6px",
+        border: "1px solid #ef444445"
+      }
+    }, days <= 0 ? "VENCIDA" : days <= 3 ? "HOY" : "PRONTO"), rem === 1 && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "#8b5cf620",
+        color: "#a78bfa",
+        fontSize: "10px",
+        fontWeight: "700",
+        padding: "2px 7px",
+        borderRadius: "6px",
+        border: "1px solid #8b5cf640"
+      }
+    }, "\xDALTIMA")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: T3,
+        marginTop: "3px"
+      }
+    }, "Cuota ", e.currentInstallment, "/", e.totalInstallments, " \xB7 ", fmt(e.installmentAmount), "/mes"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: urgent ? "#f87171" : T3,
+        marginTop: "2px"
+      }
+    }, days < 0 ? `⚠️ Venció hace ${Math.abs(days)}d` : days === 0 ? "🔴 Hoy" : days === 1 ? "🔴 Mañana" : urgent ? `🟠 En ${days} días` : `📅 ${due.toLocaleDateString("es-CL", {
+      day: "numeric",
+      month: "short"
+    })}`)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right",
+        flexShrink: 0,
+        marginLeft: "10px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        color: "#818cf8",
+        fontSize: "14px"
+      }
+    }, fmt(e.amount)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: T3
+      }
+    }, "total"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "5px",
+        background: "#152236",
+        borderRadius: "3px",
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "100%",
+        width: `${pct}%`,
+        background: urgent ? "#ef4444" : "#6366f1",
+        borderRadius: "3px"
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: T3,
+        marginTop: "4px"
+      }
+    }, rem, " cuota", rem !== 1 ? "s" : "", " restante", rem !== 1 ? "s" : ""));
+  })));
+}
+
+/* ── Ingresos Tab ── */
+function IngresosTab({
+  filtInc,
+  onDel,
+  onEdit
+}) {
+  const [editing, setEditing] = useState(null); // income id being edited
+  const [ef, setEf] = useState({}); // edit form fields
+  if (!filtInc.length) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "48px 20px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "44px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("div", null, "Sin ingresos este mes"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#475569",
+      marginTop: "6px"
+    }
+  }, "Usa el bot\xF3n \"Ingreso\" arriba para registrar"));
+  const total = filtInc.reduce((s, i) => s + i.amount, 0);
+  const byCat = filtInc.reduce((a, i) => {
+    a[i.category] = (a[i.category] || 0) + i.amount;
+    return a;
+  }, {});
+  const startEdit = i => {
+    setEditing(i.id);
+    setEf({
+      description: i.description,
+      amount: i.amount,
+      category: i.category,
+      date: i.date
+    });
+  };
+  const saveEdit = id => {
+    var _ef$description;
+    if (ef.amount && (_ef$description = ef.description) !== null && _ef$description !== void 0 && _ef$description.trim()) {
+      onEdit(id, {
+        ...ef,
+        amount: Number(ef.amount)
+      });
+      setEditing(null);
+    }
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card(),
+      background: "#22c55e10",
+      border: "1px solid #22c55e25"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: "#22c55e",
+      fontWeight: "700",
+      letterSpacing: "1.5px",
+      textTransform: "uppercase"
+    }
+  }, "Total ingresos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      fontSize: "34px",
+      color: "#4ade80",
+      margin: "8px 0 4px"
+    }
+  }, fmt(total)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: T3
+    }
+  }, filtInc.length, " transacci\xF3n", filtInc.length !== 1 ? "es" : "")), Object.entries(byCat).map(([cat, t]) => /*#__PURE__*/React.createElement("div", {
+    key: cat,
+    style: {
+      ...card(),
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      padding: "10px 14px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "14px",
+      color: T2
+    }
+  }, cat), /*#__PURE__*/React.createElement("span", {
+    style: {
+      ...mono,
+      color: "#4ade80",
+      fontSize: "14px"
+    }
+  }, fmt(t)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px solid ${BRD}`,
+      marginTop: "10px",
+      paddingTop: "14px"
+    }
+  }, [...filtInc].sort((a, b) => b.date.localeCompare(a.date)).map(i => /*#__PURE__*/React.createElement("div", {
+    key: i.id,
+    style: {
+      ...card(),
+      padding: "13px 14px"
+    }
+  }, editing === i.id ?
+  /*#__PURE__*/
+  /* ── Edit form ── */
+  React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#22c55e",
+      fontWeight: "700",
+      marginBottom: "10px",
+      letterSpacing: "1px"
+    }
+  }, "\u270F\uFE0F EDITANDO"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px",
+      marginBottom: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...lbl
+    }
+  }, "Descripci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      padding: "8px 10px",
+      fontSize: "13px"
+    },
+    value: ef.description || "",
+    onChange: e => setEf(f => ({
+      ...f,
+      description: e.target.value
+    }))
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...lbl
+    }
+  }, "Monto (CLP)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: {
+      ...inp(),
+      padding: "8px 10px",
+      fontSize: "13px"
+    },
+    value: ef.amount || "",
+    onChange: e => setEf(f => ({
+      ...f,
+      amount: e.target.value
+    }))
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px",
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...lbl
+    }
+  }, "Origen"), /*#__PURE__*/React.createElement("select", {
+    style: {
+      ...inp(),
+      padding: "8px 10px",
+      fontSize: "13px"
+    },
+    value: ef.category || "",
+    onChange: e => setEf(f => ({
+      ...f,
+      category: e.target.value
+    }))
+  }, INCOME_CATS.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...lbl
+    }
+  }, "Fecha"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    style: {
+      ...inp(),
+      padding: "8px 10px",
+      fontSize: "13px"
+    },
+    value: ef.date || "",
+    onChange: e => setEf(f => ({
+      ...f,
+      date: e.target.value
+    }))
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => saveEdit(i.id),
+    style: {
+      flex: 1,
+      background: "#22c55e",
+      color: "#000",
+      border: "none",
+      borderRadius: "9px",
+      padding: "9px",
+      fontWeight: "700",
+      fontSize: "13px",
+      cursor: "pointer",
+      fontFamily: FF
+    }
+  }, "Guardar"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setEditing(null),
+    style: {
+      background: "#152236",
+      color: T2,
+      border: "none",
+      borderRadius: "9px",
+      padding: "9px 14px",
+      cursor: "pointer",
+      fontFamily: FF,
+      fontSize: "13px"
+    }
+  }, "Cancelar"))) :
+  /*#__PURE__*/
+  /* ── Normal row ── */
+  React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "40px",
+      height: "40px",
+      borderRadius: "11px",
+      background: "#22c55e15",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "20px",
+      flexShrink: 0
+    }
+  }, "\uD83D\uDCB0"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      minWidth: 0
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      fontSize: "14px",
+      color: T1,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap"
+    }
+  }, i.description), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3,
+      marginTop: "2px"
+    }
+  }, i.date, " \xB7 ", i.category)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...mono,
+      color: "#4ade80",
+      fontSize: "15px",
+      flexShrink: 0
+    }
+  }, fmt(i.amount)), /*#__PURE__*/React.createElement("button", {
+    onClick: () => startEdit(i),
+    style: {
+      background: "#22c55e15",
+      border: "none",
+      borderRadius: "7px",
+      padding: "5px 8px",
+      cursor: "pointer",
+      color: "#4ade80",
+      display: "flex",
+      fontSize: "13px"
+    },
+    title: "Editar"
+  }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onDel(i.id),
+    className: "delbtn",
+    style: {
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      color: "#ef4444",
+      padding: "4px",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(ITrash, {
+    s: 14
+  })))))));
+}
+
+/* ── Gastos Tab ── */
+function GastosTab({
+  filtExp,
+  cats,
+  onDel,
+  onEdit
+}) {
+  const [editing, setEditing] = useState(null);
+  const [ef, setEf] = useState({});
+  if (!filtExp.length) return /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "48px 20px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "38px",
+      marginBottom: "10px"
+    }
+  }, "\uD83D\uDCCB"), /*#__PURE__*/React.createElement("div", null, "Sin gastos en este per\xEDodo"));
+  const startEdit = e => {
+    setEditing(e.id);
+    setEf({
+      description: e.description,
+      amount: e.amount,
+      category: e.category,
+      date: e.date,
+      installmentAmount: e.installmentAmount,
+      isCredit: e.isCredit,
+      currentInstallment: e.currentInstallment,
+      totalInstallments: e.totalInstallments
+    });
+  };
+  const saveEdit = id => {
+    var _ef$description2;
+    if (ef.amount && (_ef$description2 = ef.description) !== null && _ef$description2 !== void 0 && _ef$description2.trim()) {
+      onEdit(id, {
+        ...ef,
+        amount: Number(ef.amount),
+        installmentAmount: ef.isCredit ? Math.round(Number(ef.amount) / Number(ef.totalInstallments || 1)) : Number(ef.amount)
+      });
+      setEditing(null);
+    }
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, [...filtExp].sort((a, b) => b.date.localeCompare(a.date)).map(e => {
+    const cat = cats.find(c => c.name === e.category) || {
+      icon: "📦",
+      color: "#94a3b8"
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: e.id,
+      style: {
+        ...card(),
+        padding: "13px 14px"
+      }
+    }, editing === e.id ?
+    /*#__PURE__*/
+    /* ── Edit form ── */
+    React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: cat.color,
+        fontWeight: "700",
+        marginBottom: "10px",
+        letterSpacing: "1px"
+      }
+    }, "\u270F\uFE0F EDITANDO \u2014 ", e.description), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "8px",
+        marginBottom: "8px"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...lbl
+      }
+    }, "Descripci\xF3n"), /*#__PURE__*/React.createElement("input", {
+      style: {
+        ...inp(),
+        padding: "8px 10px",
+        fontSize: "13px"
+      },
+      value: ef.description || "",
+      onChange: ev => setEf(f => ({
+        ...f,
+        description: ev.target.value
+      }))
+    })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...lbl
+      }
+    }, ef.isCredit ? "Monto total (CLP)" : "Monto (CLP)"), /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      style: {
+        ...inp(),
+        padding: "8px 10px",
+        fontSize: "13px"
+      },
+      value: ef.amount || "",
+      onChange: ev => setEf(f => ({
+        ...f,
+        amount: ev.target.value
+      }))
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr",
+        gap: "8px",
+        marginBottom: "10px"
+      }
+    }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...lbl
+      }
+    }, "Categor\xEDa"), /*#__PURE__*/React.createElement("select", {
+      style: {
+        ...inp(),
+        padding: "8px 10px",
+        fontSize: "13px"
+      },
+      value: ef.category || "",
+      onChange: ev => setEf(f => ({
+        ...f,
+        category: ev.target.value
+      }))
+    }, cats.map(c => /*#__PURE__*/React.createElement("option", {
+      key: c.name,
+      value: c.name
+    }, c.icon, " ", c.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...lbl
+      }
+    }, "Fecha"), /*#__PURE__*/React.createElement("input", {
+      type: "date",
+      style: {
+        ...inp(),
+        padding: "8px 10px",
+        fontSize: "13px"
+      },
+      value: ef.date || "",
+      onChange: ev => setEf(f => ({
+        ...f,
+        date: ev.target.value
+      }))
+    }))), ef.isCredit && /*#__PURE__*/React.createElement("div", {
+      style: {
+        background: "#6366f110",
+        border: "1px solid #6366f130",
+        borderRadius: "10px",
+        padding: "10px",
+        marginBottom: "10px",
+        fontSize: "12px",
+        color: "#a5b4fc"
+      }
+    }, "\uD83D\uDCA1 Cuota calculada: ", /*#__PURE__*/React.createElement("strong", null, "$", Math.round(Number(ef.amount || 0) / Number(ef.totalInstallments || 1)).toLocaleString("es-CL")), " \xD7 ", ef.totalInstallments, " cuotas"), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "8px"
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => saveEdit(e.id),
+      style: {
+        flex: 1,
+        background: cat.color,
+        color: "#000",
+        border: "none",
+        borderRadius: "9px",
+        padding: "9px",
+        fontWeight: "700",
+        fontSize: "13px",
+        cursor: "pointer",
+        fontFamily: FF
+      }
+    }, "Guardar"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditing(null),
+      style: {
+        background: "#152236",
+        color: T2,
+        border: "none",
+        borderRadius: "9px",
+        padding: "9px 14px",
+        cursor: "pointer",
+        fontFamily: FF,
+        fontSize: "13px"
+      }
+    }, "Cancelar"))) :
+    /*#__PURE__*/
+    /* ── Normal row ── */
+    React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "11px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "42px",
+        height: "42px",
+        borderRadius: "11px",
+        background: cat.color + "20",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "20px",
+        flexShrink: 0,
+        position: "relative"
+      }
+    }, cat.icon, e.isRecurring && /*#__PURE__*/React.createElement("div", {
+      style: {
+        position: "absolute",
+        bottom: "-3px",
+        right: "-3px",
+        background: "#f97316",
+        borderRadius: "50%",
+        width: "14px",
+        height: "14px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "8px",
+        border: "2px solid #050B18"
+      }
+    }, "\uD83D\uDD01")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "600",
+        fontSize: "14px",
+        color: T1,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, e.description), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: T3,
+        marginTop: "2px"
+      }
+    }, e.date, " \xB7 ", e.category, e.isCredit ? ` · Cuota ${e.currentInstallment}/${e.totalInstallments}` : "")), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        color: e.isCredit ? "#818cf8" : T1,
+        fontSize: "14px"
+      }
+    }, fmt(e.isCredit ? e.installmentAmount : e.amount)), e.isCredit && /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        color: T3
+      }
+    }, fmt(e.amount), " total")), /*#__PURE__*/React.createElement("button", {
+      onClick: () => startEdit(e),
+      style: {
+        background: cat.color + "20",
+        border: "none",
+        borderRadius: "7px",
+        padding: "5px 8px",
+        cursor: "pointer",
+        color: cat.color,
+        fontSize: "13px"
+      },
+      title: "Editar"
+    }, "\u270F\uFE0F"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onDel(e.id),
+      className: "delbtn",
+      style: {
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "#ef4444",
+        padding: "4px",
+        display: "flex"
+      }
+    }, /*#__PURE__*/React.createElement(ITrash, {
+      s: 14
+    }))));
+  }));
+}
+
+/* ── Budgets Tab ── */
+function BudgetsTab({
+  member,
+  catTotals,
+  cats,
+  onSave,
+  onDel
+}) {
+  var _avail$;
+  const [editing, setEditing] = useState(null);
+  const [editVal, setEditVal] = useState("");
+  const [newAmt, setNewAmt] = useState("");
+  const avail = cats.filter(c => !member.budgets[c.name]);
+  const [newCat, setNewCat] = useState(((_avail$ = avail[0]) === null || _avail$ === void 0 ? void 0 : _avail$.name) || "");
+  const bc = p => p >= 100 ? "#ef4444" : p >= 90 ? "#f97316" : p >= 70 ? "#f59e0b" : "#10b981";
+  const entries = Object.entries(member.budgets || {});
+  const exceeded = entries.filter(([c, b]) => (catTotals[c] || 0) >= b);
+  const warning = entries.filter(([c, b]) => {
+    const p = (catTotals[c] || 0) / b * 100;
+    return p >= 70 && p < 100;
+  });
+  return /*#__PURE__*/React.createElement("div", null, exceeded.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#ef444415",
+      border: "1px solid #ef444440",
+      borderRadius: "12px",
+      padding: "12px 14px",
+      marginBottom: "14px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "20px"
+    }
+  }, "\uD83D\uDEA8"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      color: "#f87171",
+      fontSize: "14px"
+    }
+  }, "Presupuesto excedido"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#fca5a5"
+    }
+  }, exceeded.map(([c]) => c).join(", ")))), !exceeded.length && warning.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#f59e0b15",
+      border: "1px solid #f59e0b40",
+      borderRadius: "12px",
+      padding: "12px 14px",
+      marginBottom: "14px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("span", {
+    style: {
+      fontSize: "20px"
+    }
+  }, "\u26A0\uFE0F"), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      color: "#fbbf24",
+      fontSize: "14px"
+    }
+  }, "Cerca del l\xEDmite"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#fde68a"
+    }
+  }, warning.map(([c]) => c).join(", ")))), !entries.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "28px 20px",
+      color: T3,
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "36px",
+      marginBottom: "8px"
+    }
+  }, "\uD83C\uDFAF"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "14px"
+    }
+  }, "Sin presupuestos definidos")), entries.map(([cat, budget]) => {
+    const spent = catTotals[cat] || 0,
+      pct = Math.min(spent / budget * 100, 100),
+      over = spent > budget;
+    const ci = cats.find(c => c.name === cat) || {
+      icon: "📦",
+      color: "#94a3b8"
+    };
+    return /*#__PURE__*/React.createElement("div", {
+      key: cat,
+      style: {
+        ...card(),
+        borderColor: over ? "#ef444440" : spent / budget >= 0.7 ? "#f59e0b30" : BRD
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "flex-start",
+        gap: "10px",
+        marginBottom: "10px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "22px",
+        marginTop: "2px"
+      }
+    }, ci.icon), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "600",
+        color: T1,
+        fontSize: "14px"
+      }
+    }, cat), editing === cat ? /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "6px",
+        marginTop: "6px"
+      }
+    }, /*#__PURE__*/React.createElement("input", {
+      type: "number",
+      value: editVal,
+      onChange: e => setEditVal(e.target.value),
+      autoFocus: true,
+      style: {
+        ...inp(),
+        padding: "6px 10px",
+        fontSize: "13px",
+        width: "130px"
+      }
+    }), /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        onSave(cat, editVal);
+        setEditing(null);
+      },
+      style: {
+        background: "#10b981",
+        border: "none",
+        borderRadius: "8px",
+        padding: "6px 12px",
+        color: "#000",
+        fontWeight: "700",
+        fontSize: "12px",
+        cursor: "pointer",
+        fontFamily: FF
+      }
+    }, "OK"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => setEditing(null),
+      style: {
+        background: "#152236",
+        border: "none",
+        borderRadius: "8px",
+        padding: "6px 10px",
+        color: T2,
+        cursor: "pointer",
+        display: "flex"
+      }
+    }, /*#__PURE__*/React.createElement(IX, {
+      s: 12
+    }))) : /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: T3
+      }
+    }, "L\xEDmite: ", fmt(budget))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        color: over ? "#f87171" : spent / budget >= 0.7 ? "#fbbf24" : T1,
+        fontSize: "14px"
+      }
+    }, fmt(spent)), editing !== cat && /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        gap: "4px",
+        justifyContent: "flex-end",
+        marginTop: "4px"
+      }
+    }, /*#__PURE__*/React.createElement("button", {
+      onClick: () => {
+        setEditing(cat);
+        setEditVal(String(budget));
+      },
+      style: {
+        background: "#152236",
+        border: "none",
+        borderRadius: "6px",
+        padding: "3px 8px",
+        color: T2,
+        cursor: "pointer",
+        fontSize: "11px",
+        fontFamily: FF
+      }
+    }, "Editar"), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onDel(cat),
+      style: {
+        background: "#ef444415",
+        border: "none",
+        borderRadius: "6px",
+        padding: "3px 8px",
+        color: "#ef4444",
+        cursor: "pointer",
+        fontSize: "11px",
+        fontFamily: FF
+      }
+    }, "Borrar")))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "6px",
+        background: "#152236",
+        borderRadius: "4px",
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "100%",
+        width: `${pct}%`,
+        background: bc(spent / budget * 100),
+        borderRadius: "4px"
+      }
+    })), /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginTop: "5px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: over ? "#f87171" : spent / budget >= 0.7 ? "#fbbf24" : T3
+      }
+    }, over ? `🚨 Excedido ${fmt(spent - budget)}` : spent / budget >= 0.7 ? `⚠️ Disponible ${fmt(budget - spent)}` : `Disponible ${fmt(budget - spent)}`), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: over ? "#f87171" : spent / budget >= 0.7 ? "#fbbf24" : T3,
+        fontWeight: "600"
+      }
+    }, Math.round(spent / budget * 100), "%")));
+  }), avail.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card(),
+      background: "#152236",
+      marginTop: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T1,
+      marginBottom: "12px",
+      fontSize: "14px"
+    }
+  }, "+ Nuevo presupuesto"), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Categor\xEDa"), /*#__PURE__*/React.createElement("select", {
+    style: {
+      ...inp(),
+      marginBottom: "10px"
+    },
+    value: newCat,
+    onChange: e => setNewCat(e.target.value)
+  }, avail.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.name,
+    value: c.name
+  }, c.icon, " ", c.name))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Monto l\xEDmite (CLP)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "0",
+    value: newAmt,
+    onChange: e => setNewAmt(e.target.value)
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (newAmt && newCat) {
+        onSave(newCat, Number(newAmt));
+        setNewAmt("");
+        const nx = avail.find(c => c.name !== newCat);
+        if (nx) setNewCat(nx.name);
+      }
+    },
+    color: member.color,
+    label: "Guardar presupuesto"
+  })));
+}
+
+/* ════════════════════════════════════════════════════════════
+   REPORTES TAB  — análisis y proyecciones
+════════════════════════════════════════════════════════════ */
+function ReportesTab({
+  member,
+  cats
+}) {
+  const [year, setYear] = useState(new Date().getFullYear());
+  const fmt = n => `$${Number(n || 0).toLocaleString("es-CL")}`;
+  const now = new Date();
+
+  // ── Build 12-month data for selected year ──
+  const months = Array.from({
+    length: 12
+  }, (_, i) => {
+    const key = `${year}-${String(i + 1).padStart(2, "0")}`;
+    const label = new Date(year, i, 1).toLocaleString("es-CL", {
+      month: "short"
+    });
+    const exps = (member.expenses || []).filter(e => e.date.startsWith(key));
+    const incs = (member.incomes || []).filter(i => i.date.startsWith(key));
+    const gastos = exps.reduce((s, e) => s + (e.isCredit ? e.installmentAmount : e.amount), 0);
+    const ingresos = incs.reduce((s, i) => s + i.amount, 0);
+    return {
+      key,
+      label,
+      gastos,
+      ingresos,
+      balance: ingresos - gastos,
+      exps,
+      incs
+    };
+  });
+  const totalYearExp = months.reduce((s, m) => s + m.gastos, 0);
+  const totalYearInc = months.reduce((s, m) => s + m.ingresos, 0);
+  const avgMonthExp = totalYearExp / 12;
+  const bestMonth = [...months].sort((a, b) => b.balance - a.balance)[0];
+  const worstMonth = [...months].sort((a, b) => a.balance - b.balance)[0];
+
+  // ── Current month projection ──
+  const curKey = now.toISOString().slice(0, 7);
+  const curMonth = months.find(m => m.key === curKey);
+  const dayOfMonth = now.getDate();
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  const projected = curMonth ? Math.round(curMonth.gastos / dayOfMonth * daysInMonth) : 0;
+  const projDiff = projected - avgMonthExp;
+
+  // ── Category breakdown for year ──
+  const catYear = {};
+  months.forEach(m => m.exps.forEach(e => {
+    const amt = e.isCredit ? e.installmentAmount : e.amount;
+    catYear[e.category] = (catYear[e.category] || 0) + amt;
+  }));
+  const catRanking = Object.entries(catYear).sort((a, b) => b[1] - a[1]).slice(0, 6);
+
+  // ── Month-over-month change ──
+  const curIdx = now.getMonth();
+  const prevKey = `${curIdx === 0 ? year - 1 : year}-${String(curIdx === 0 ? 12 : curIdx).padStart(2, "0")}`;
+  const prevM = months.find(m => m.key === prevKey) || {
+    gastos: 0
+  };
+  const momDiff = curMonth ? curMonth.gastos - prevM.gastos : 0;
+  const S2 = {
+    card: {
+      background: "#0D1B2A",
+      borderRadius: "14px",
+      padding: "16px",
+      marginBottom: "10px",
+      border: "1px solid #1E3354"
+    },
+    mono: {
+      fontFamily: "'JetBrains Mono',monospace",
+      fontWeight: "600"
+    },
+    lbl: {
+      fontSize: "10px",
+      color: "#64748b",
+      fontWeight: "700",
+      letterSpacing: "1.5px",
+      textTransform: "uppercase",
+      marginBottom: "4px"
+    }
+  };
+  return /*#__PURE__*/React.createElement("div", {
+    style: {
+      paddingBottom: "20px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "16px"
+    }
+  }, /*#__PURE__*/React.createElement("button", {
+    onClick: () => setYear(y => y - 1),
+    style: {
+      background: "#152236",
+      border: "1px solid #1E3354",
+      borderRadius: "8px",
+      padding: "7px 12px",
+      color: "#94a3b8",
+      cursor: "pointer",
+      fontFamily: "'Outfit',sans-serif",
+      fontSize: "14px"
+    }
+  }, "\u2190"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      textAlign: "center",
+      fontWeight: "700",
+      color: "#E2E8F0",
+      fontSize: "16px"
+    }
+  }, year), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setYear(y => y + 1),
+    disabled: year >= now.getFullYear(),
+    style: {
+      background: "#152236",
+      border: "1px solid #1E3354",
+      borderRadius: "8px",
+      padding: "7px 12px",
+      color: "#94a3b8",
+      cursor: "pointer",
+      fontFamily: "'Outfit',sans-serif",
+      fontSize: "14px",
+      opacity: year >= now.getFullYear() ? 0.3 : 1
+    }
+  }, "\u2192")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px",
+      marginBottom: "10px"
+    }
+  }, [{
+    l: "INGRESOS AÑO",
+    v: fmt(totalYearInc),
+    c: "#22c55e"
+  }, {
+    l: "GASTOS AÑO",
+    v: fmt(totalYearExp),
+    c: "#f87171"
+  }, {
+    l: "BALANCE AÑO",
+    v: (totalYearInc - totalYearExp >= 0 ? "+" : "-") + fmt(Math.abs(totalYearInc - totalYearExp)),
+    c: totalYearInc >= totalYearExp ? "#22c55e" : "#f87171"
+  }, {
+    l: "PROMEDIO MES",
+    v: fmt(avgMonthExp),
+    c: "#60a5fa"
+  }].map(({
+    l,
+    v,
+    c
+  }) => /*#__PURE__*/React.createElement("div", {
+    key: l,
+    style: {
+      background: c + "10",
+      border: `1px solid ${c}25`,
+      borderRadius: "12px",
+      padding: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl,
+      color: c
+    }
+  }, l), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      fontSize: "15px",
+      color: c
+    }
+  }, v)))), year === now.getFullYear() && curMonth && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.card,
+      background: projDiff > 0 ? "#ef44440e" : "#22c55e0e",
+      border: `1px solid ${projDiff > 0 ? "#ef444430" : "#22c55e30"}`,
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "28px"
+    }
+  }, "\uD83D\uDD2E"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: projDiff > 0 ? "#f87171" : "#22c55e",
+      fontWeight: "700",
+      letterSpacing: "1px",
+      textTransform: "uppercase"
+    }
+  }, "Proyecci\xF3n al fin de ", now.toLocaleString("es-CL", {
+    month: "long"
+  })), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      fontSize: "22px",
+      color: projDiff > 0 ? "#f87171" : "#4ade80",
+      margin: "4px 0"
+    }
+  }, fmt(projected)), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: "#64748b"
+    }
+  }, "Gastaste ", fmt(curMonth.gastos), " en ", dayOfMonth, " d\xEDas \xB7 Ritmo actual: ", fmt(Math.round(curMonth.gastos / dayOfMonth)), "/d\xEDa"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "12px",
+      color: projDiff > 0 ? "#f87171" : "#4ade80",
+      marginTop: "4px",
+      fontWeight: "600"
+    }
+  }, projDiff > 0 ? `⚠️ ${fmt(projDiff)} más que tu promedio mensual` : `✓ ${fmt(Math.abs(projDiff))} menos que tu promedio`)))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "8px",
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#22c55e10",
+      border: "1px solid #22c55e25",
+      borderRadius: "12px",
+      padding: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl,
+      color: "#22c55e"
+    }
+  }, "MEJOR MES \uD83C\uDFC6"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      color: "#4ade80",
+      fontSize: "16px",
+      textTransform: "capitalize"
+    }
+  }, bestMonth.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      fontSize: "13px",
+      color: "#22c55e"
+    }
+  }, bestMonth.balance >= 0 ? "+" : "", fmt(bestMonth.balance))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#f8717110",
+      border: "1px solid #f8717125",
+      borderRadius: "12px",
+      padding: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl,
+      color: "#f87171"
+    }
+  }, "MES M\xC1S CARO \uD83D\uDCB8"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "700",
+      color: "#f87171",
+      fontSize: "16px",
+      textTransform: "capitalize"
+    }
+  }, worstMonth.label), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      fontSize: "13px",
+      color: "#f87171"
+    }
+  }, fmt(worstMonth.gastos)))), year === now.getFullYear() && curMonth && /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.card,
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: "#E2E8F0",
+      fontSize: "14px",
+      marginBottom: "12px"
+    }
+  }, "\uD83D\uDCC5 Este mes vs mes anterior"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      background: "#152236",
+      borderRadius: "10px",
+      padding: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl
+    }
+  }, "MES ANTERIOR"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      color: "#94a3b8",
+      fontSize: "14px"
+    }
+  }, fmt(prevM.gastos))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      background: "#152236",
+      borderRadius: "10px",
+      padding: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl
+    }
+  }, "ESTE MES"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      color: "#E2E8F0",
+      fontSize: "14px"
+    }
+  }, fmt(curMonth.gastos))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      background: momDiff > 0 ? "#ef444415" : "#22c55e15",
+      borderRadius: "10px",
+      padding: "10px",
+      border: `1px solid ${momDiff > 0 ? "#ef444430" : "#22c55e30"}`
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.lbl,
+      color: momDiff > 0 ? "#f87171" : "#22c55e"
+    }
+  }, "DIFERENCIA"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...S2.mono,
+      color: momDiff > 0 ? "#f87171" : "#4ade80",
+      fontSize: "14px"
+    }
+  }, momDiff > 0 ? "+" : "", fmt(momDiff))))), catRanking.length > 0 && /*#__PURE__*/React.createElement("div", {
+    style: S2.card
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: "#E2E8F0",
+      fontSize: "14px",
+      marginBottom: "14px"
+    }
+  }, "\uD83C\uDFC5 Top categor\xEDas del ", year), catRanking.map(([cat, total], i) => {
+    const ci = cats.find(c => c.name === cat) || {
+      icon: "📦",
+      color: "#94a3b8"
+    };
+    const pct = totalYearExp > 0 ? total / totalYearExp * 100 : 0;
+    return /*#__PURE__*/React.createElement("div", {
+      key: cat,
+      style: {
+        marginBottom: "12px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        justifyContent: "space-between",
+        marginBottom: "5px",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        display: "flex",
+        alignItems: "center",
+        gap: "7px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        fontWeight: "700",
+        color: "#475569",
+        width: "14px"
+      }
+    }, "#", i + 1), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "17px"
+      }
+    }, ci.icon), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "14px",
+        color: "#E2E8F0",
+        fontWeight: "600"
+      }
+    }, cat)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...S2.mono,
+        color: ci.color,
+        fontSize: "14px"
+      }
+    }, fmt(total)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        color: "#64748b"
+      }
+    }, Math.round(pct), "%"))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "5px",
+        background: "#152236",
+        borderRadius: "3px",
+        overflow: "hidden"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        height: "100%",
+        width: `${pct}%`,
+        background: ci.color,
+        borderRadius: "3px"
+      }
+    })));
+  })), /*#__PURE__*/React.createElement("div", {
+    style: S2.card
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: "#E2E8F0",
+      fontSize: "14px",
+      marginBottom: "14px"
+    }
+  }, "\uD83D\uDCCA Ingresos vs Gastos por mes \u2014 ", year), /*#__PURE__*/React.createElement(ResponsiveContainer, {
+    width: "100%",
+    height: 180
+  }, /*#__PURE__*/React.createElement(BarChart, {
+    data: months,
+    margin: {
+      top: 0,
+      right: 0,
+      left: -25,
+      bottom: 0
+    },
+    barGap: 2
+  }, /*#__PURE__*/React.createElement(XAxis, {
+    dataKey: "label",
+    tick: {
+      fill: "#64748b",
+      fontSize: 10
+    },
+    axisLine: false,
+    tickLine: false
+  }), /*#__PURE__*/React.createElement(YAxis, {
+    tick: {
+      fill: "#64748b",
+      fontSize: 9
+    },
+    axisLine: false,
+    tickLine: false,
+    tickFormatter: v => v >= 1000 ? `${Math.round(v / 1000)}k` : v
+  }), /*#__PURE__*/React.createElement(Tooltip, {
+    formatter: (v, n) => [`$${Number(v).toLocaleString("es-CL")}`, n === "ingresos" ? "Ingresos" : "Gastos"],
+    contentStyle: {
+      background: "#0D1B2A",
+      border: "1px solid #1E3354",
+      borderRadius: "8px",
+      color: "#E2E8F0",
+      fontFamily: "'Outfit',sans-serif"
+    },
+    cursor: {
+      fill: "rgba(255,255,255,0.03)"
+    }
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "ingresos",
+    fill: "#22c55e",
+    radius: [3, 3, 0, 0]
+  }), /*#__PURE__*/React.createElement(Bar, {
+    dataKey: "gastos",
+    fill: "#f87171",
+    radius: [3, 3, 0, 0]
+  }))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "14px",
+      justifyContent: "center",
+      marginTop: "6px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "12px",
+      color: "#64748b"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "2px",
+      background: "#22c55e"
+    }
+  }), "Ingresos"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "5px",
+      fontSize: "12px",
+      color: "#64748b"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "2px",
+      background: "#f87171"
+    }
+  }), "Gastos"))));
+}
+
+/* ── Recurring Tab ── */
+function RecurringTab({
+  member,
+  cats,
+  mon,
+  onAdd,
+  onDel,
+  onToggle,
+  onApply
+}) {
+  var _cats$;
+  const [f, setF] = useState({
+    desc: "",
+    amount: "",
+    cat: ((_cats$ = cats[0]) === null || _cats$ === void 0 ? void 0 : _cats$.name) || "Otros",
+    day: 1
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const recurring = member.recurring || [];
+  const applied = r => (member.expenses || []).some(e => e.recurringId === r.id && e.date.startsWith(mon));
+  return /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("button", {
+    onClick: onApply,
+    style: {
+      background: "#f97316",
+      color: "#000",
+      border: "none",
+      borderRadius: "11px",
+      padding: "13px",
+      fontWeight: "700",
+      fontSize: "14px",
+      cursor: "pointer",
+      width: "100%",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "8px",
+      fontFamily: FF,
+      marginBottom: "16px"
+    }
+  }, /*#__PURE__*/React.createElement(IRepeat, {
+    s: 16
+  }), " Aplicar gastos fijos \u2014 ", mon), !recurring.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "28px 20px",
+      color: T3,
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "36px",
+      marginBottom: "8px"
+    }
+  }, "\uD83D\uDCC5"), /*#__PURE__*/React.createElement("div", null, "Sin gastos fijos configurados")), recurring.map(r => {
+    const ci = cats.find(c => c.name === r.category) || {
+      icon: "📦",
+      color: "#94a3b8"
+    };
+    const isApp = applied(r);
+    return /*#__PURE__*/React.createElement("div", {
+      key: r.id,
+      style: {
+        ...card(),
+        display: "flex",
+        alignItems: "center",
+        gap: "12px",
+        padding: "13px 14px",
+        opacity: r.active ? 1 : 0.5
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "42px",
+        height: "42px",
+        borderRadius: "11px",
+        background: ci.color + "20",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "20px",
+        flexShrink: 0
+      }
+    }, ci.icon), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "600",
+        fontSize: "14px",
+        color: T1,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, r.description), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: T3,
+        marginTop: "2px"
+      }
+    }, r.category, " \xB7 D\xEDa ", r.day)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        color: T1,
+        fontSize: "14px"
+      }
+    }, fmt(r.amount)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: isApp ? "#10b981" : T3,
+        marginTop: "2px"
+      }
+    }, isApp ? "✓ aplicado" : "pendiente")), /*#__PURE__*/React.createElement("div", {
+      onClick: () => onToggle(r.id),
+      style: {
+        width: "36px",
+        height: "20px",
+        borderRadius: "10px",
+        background: r.active ? "#10b981" : "#1e3354",
+        position: "relative",
+        cursor: "pointer",
+        flexShrink: 0,
+        transition: "background .2s"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "14px",
+        height: "14px",
+        borderRadius: "50%",
+        background: "white",
+        position: "absolute",
+        top: "3px",
+        left: r.active ? "19px" : "3px",
+        transition: "left .2s"
+      }
+    })), /*#__PURE__*/React.createElement("button", {
+      onClick: () => onDel(r.id),
+      className: "delbtn",
+      style: {
+        background: "transparent",
+        border: "none",
+        cursor: "pointer",
+        color: "#ef4444",
+        padding: "4px",
+        display: "flex"
+      }
+    }, /*#__PURE__*/React.createElement(ITrash, {
+      s: 14
+    })));
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      ...card(),
+      background: "#152236",
+      marginTop: "8px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T1,
+      marginBottom: "12px",
+      fontSize: "14px"
+    }
+  }, "+ Nuevo gasto fijo"), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Descripci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "10px"
+    },
+    placeholder: "Arriendo, Luz, Netflix...",
+    value: f.desc,
+    onChange: e => upd("desc", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Monto (CLP)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: {
+      ...inp(),
+      marginBottom: "10px"
+    },
+    placeholder: "0",
+    value: f.amount,
+    onChange: e => upd("amount", e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "10px",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Categor\xEDa"), /*#__PURE__*/React.createElement("select", {
+    style: inp(),
+    value: f.cat,
+    onChange: e => upd("cat", e.target.value)
+  }, cats.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.name,
+    value: c.name
+  }, c.icon, " ", c.name)))), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "D\xEDa del mes"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: inp(),
+    min: "1",
+    max: "28",
+    value: f.day,
+    onChange: e => upd("day", e.target.value)
+  }))), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (f.desc.trim() && f.amount) {
+        var _cats$2;
+        onAdd({
+          description: f.desc,
+          amount: Number(f.amount),
+          category: f.cat,
+          day: Number(f.day) || 1
+        });
+        setF({
+          desc: "",
+          amount: "",
+          cat: ((_cats$2 = cats[0]) === null || _cats$2 === void 0 ? void 0 : _cats$2.name) || "Otros",
+          day: 1
+        });
+      }
+    },
+    color: member.color,
+    label: "Guardar gasto fijo"
+  })));
+}
+
+/* ════════════════════════════════════════════════════════════
+   MODALS
+════════════════════════════════════════════════════════════ */
+function AddMemberModal({
+  cats,
+  onClose,
+  onAdd
+}) {
+  const [f, setF] = useState({
+    name: "",
+    avatar: "👦",
+    pwd: "",
+    pwd2: "",
+    email: ""
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (!f.name.trim()) {
+      setErr("Escribe un nombre.");
+      return;
+    }
+    if (f.pwd.length < 4) {
+      setErr("Contraseña mínimo 4 caracteres.");
+      return;
+    }
+    if (f.pwd !== f.pwd2) {
+      setErr("Las contraseñas no coinciden.");
+      return;
+    }
+    if (!f.email.includes("@")) {
+      setErr("Correo inválido.");
+      return;
+    }
+    setBusy(true);
+    await onAdd(f);
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "Nuevo integrante",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Avatar"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      marginBottom: "14px",
+      flexWrap: "wrap"
+    }
+  }, AVATARS.map(a => /*#__PURE__*/React.createElement("button", {
+    key: a,
+    onClick: () => upd("avatar", a),
+    style: {
+      width: "44px",
+      height: "44px",
+      borderRadius: "11px",
+      border: f.avatar === a ? "2px solid #10b981" : "2px solid #1e3354",
+      background: f.avatar === a ? "#10b98118" : "#152236",
+      fontSize: "22px",
+      cursor: "pointer"
+    }
+  }, a))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nombre"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Juan, Sof\xEDa...",
+    value: f.name,
+    onChange: e => upd("name", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: f.pwd,
+    onChange: e => upd("pwd", e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Repite la contrase\xF1a",
+    value: f.pwd2,
+    onChange: e => upd("pwd2", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Correo de recuperaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    style: {
+      ...inp(),
+      marginBottom: "16px"
+    },
+    placeholder: "su@correo.com",
+    value: f.email,
+    onChange: e => upd("email", e.target.value)
+  }), err && /*#__PURE__*/React.createElement(Err, {
+    msg: err
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    color: "#10b981",
+    label: "Agregar integrante"
+  }));
+}
+function AddExpenseModal({
+  member,
+  cats,
+  onClose,
+  onAdd
+}) {
+  var _cats$3;
+  const [f, setF] = useState({
+    desc: "",
+    amount: "",
+    cat: ((_cats$3 = cats[0]) === null || _cats$3 === void 0 ? void 0 : _cats$3.name) || "Otros",
+    date: today(),
+    isCredit: false,
+    nCuotas: 12,
+    cuotaActual: 1
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const cuota = f.isCredit && f.amount && f.nCuotas ? Math.round(Number(f.amount) / Number(f.nCuotas)) : 0;
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "Nuevo gasto",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Descripci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Supermercado, Restaurant...",
+    value: f.desc,
+    onChange: e => upd("desc", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Monto total (CLP)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "0",
+    value: f.amount,
+    onChange: e => upd("amount", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Categor\xEDa"), /*#__PURE__*/React.createElement("select", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    value: f.cat,
+    onChange: e => upd("cat", e.target.value)
+  }, cats.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c.name,
+    value: c.name
+  }, c.icon, " ", c.name))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Fecha"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    style: {
+      ...inp(),
+      marginBottom: "14px"
+    },
+    value: f.date,
+    onChange: e => upd("date", e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    onClick: () => upd("isCredit", !f.isCredit),
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      background: "#152236",
+      borderRadius: "12px",
+      padding: "12px 14px",
+      cursor: "pointer",
+      marginBottom: "14px",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement(ICard, {
+    s: 18,
+    c: f.isCredit ? "#818cf8" : T3
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T1,
+      fontSize: "14px"
+    }
+  }, "Compra en cuotas"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3
+    }
+  }, "Tarjeta de cr\xE9dito / financiamiento")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "40px",
+      height: "22px",
+      borderRadius: "11px",
+      background: f.isCredit ? "#6366f1" : "#1e3354",
+      position: "relative",
+      flexShrink: 0,
+      transition: "background .2s"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "16px",
+      height: "16px",
+      borderRadius: "50%",
+      background: "white",
+      position: "absolute",
+      top: "3px",
+      left: f.isCredit ? "21px" : "3px",
+      transition: "left .2s"
+    }
+  }))), f.isCredit && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#6366f110",
+      border: "1px solid #6366f130",
+      borderRadius: "12px",
+      padding: "14px",
+      marginBottom: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: "10px",
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "N\xB0 total cuotas"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: inp(),
+    min: "2",
+    max: "72",
+    value: f.nCuotas,
+    onChange: e => upd("nCuotas", e.target.value)
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Cuota actual (N\xB0)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: inp(),
+    min: "1",
+    max: f.nCuotas,
+    value: f.cuotaActual,
+    onChange: e => upd("cuotaActual", e.target.value)
+  }))), cuota > 0 && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#6366f118",
+      borderRadius: "8px",
+      padding: "9px 12px",
+      fontSize: "13px",
+      color: "#a5b4fc"
+    }
+  }, "\uD83D\uDCA1 Cuota mensual: ", /*#__PURE__*/React.createElement("strong", {
+    style: {
+      color: "#818cf8"
+    }
+  }, fmt(cuota)))), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (f.desc.trim() && f.amount) onAdd({
+        description: f.desc,
+        amount: Number(f.amount),
+        category: f.cat,
+        date: f.date,
+        isCredit: f.isCredit,
+        totalInstallments: f.isCredit ? Number(f.nCuotas) : 1,
+        currentInstallment: f.isCredit ? Number(f.cuotaActual) : 1,
+        installmentAmount: f.isCredit ? cuota : Number(f.amount)
+      });
+    },
+    color: member.color,
+    label: "Agregar gasto"
+  }));
+}
+function AddIncomeModal({
+  member,
+  onClose,
+  onAdd
+}) {
+  const [f, setF] = useState({
+    desc: "",
+    amount: "",
+    cat: "Sueldo",
+    date: today()
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "\uD83D\uDCB0 Nuevo ingreso",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Descripci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Sueldo agosto, Venta...",
+    value: f.desc,
+    onChange: e => upd("desc", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Monto (CLP)"), /*#__PURE__*/React.createElement("input", {
+    type: "number",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "0",
+    value: f.amount,
+    onChange: e => upd("amount", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Origen"), /*#__PURE__*/React.createElement("select", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    value: f.cat,
+    onChange: e => upd("cat", e.target.value)
+  }, INCOME_CATS.map(c => /*#__PURE__*/React.createElement("option", {
+    key: c,
+    value: c
+  }, c))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Fecha"), /*#__PURE__*/React.createElement("input", {
+    type: "date",
+    style: {
+      ...inp(),
+      marginBottom: "20px"
+    },
+    value: f.date,
+    onChange: e => upd("date", e.target.value)
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (f.desc.trim() && f.amount) onAdd({
+        description: f.desc,
+        amount: Number(f.amount),
+        category: f.cat,
+        date: f.date
+      });
+    },
+    color: "#22c55e",
+    label: "Registrar ingreso"
+  }));
+}
+function ChangePwdModal({
+  onClose,
+  onSave,
+  error
+}) {
+  const [f, setF] = useState({
+    old: "",
+    n: "",
+    n2: ""
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  const [show, setShow] = useState(false);
+  const [busy, setBusy] = useState(false);
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "\uD83D\uDD10 Cambiar contrase\xF1a",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a actual"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    value: f.old,
+    onChange: e => upd("old", e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nueva contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: f.n,
+    onChange: e => upd("n", e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir nueva contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "16px"
+    },
+    value: f.n2,
+    onChange: e => upd("n2", e.target.value)
+  }), error && /*#__PURE__*/React.createElement(Err, {
+    msg: error
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: async () => {
+      if (f.n.length < 4 || f.n !== f.n2) return;
+      setBusy(true);
+      await onSave(f.old, f.n);
+      setBusy(false);
+    },
+    busy: busy,
+    color: "#6366f1",
+    label: "Actualizar contrase\xF1a"
+  }));
+}
+function SetPwdModal({
+  memberName,
+  onClose,
+  onSave
+}) {
+  const [pwd, setPwd] = useState("");
+  const [pwd2, setPwd2] = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const submit = async () => {
+    if (pwd.length < 4) {
+      setErr("Mínimo 4 caracteres.");
+      return;
+    }
+    if (pwd !== pwd2) {
+      setErr("No coinciden.");
+      return;
+    }
+    setBusy(true);
+    await onSave(pwd);
+    setBusy(false);
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: `🔑 Resetear clave de ${memberName}`,
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#f59e0b15",
+      border: "1px solid #f59e0b40",
+      borderRadius: "10px",
+      padding: "10px 14px",
+      fontSize: "12px",
+      color: "#fbbf24",
+      marginBottom: "16px"
+    }
+  }, "Como administrador puedes cambiar la contrase\xF1a de este integrante sin necesitar la anterior."), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nueva contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: pwd,
+    onChange: e => setPwd(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "16px"
+    },
+    value: pwd2,
+    onChange: e => setPwd2(e.target.value)
+  }), err && /*#__PURE__*/React.createElement(Err, {
+    msg: err
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    color: "#f59e0b",
+    label: "Guardar nueva contrase\xF1a"
+  }));
+}
+
+/* ════════════════════════════════════════════════════════════
+   EDIT ADMIN PROFILE MODAL
+════════════════════════════════════════════════════════════ */
+function EditAdminProfileModal({
+  admin,
+  onClose,
+  onSave
+}) {
+  const [name, setName] = useState((admin === null || admin === void 0 ? void 0 : admin.name) || "");
+  const [email, setEmail] = useState((admin === null || admin === void 0 ? void 0 : admin.email) || "");
+  const [oldPwd, setOldPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [newPwd2, setNewPwd2] = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [chgPwd, setChgPwd] = useState(false);
+  const submit = async () => {
+    if (!name.trim()) {
+      setErr("El nombre no puede estar vacío.");
+      return;
+    }
+    if (!email.includes("@")) {
+      setErr("Ingresa un correo válido.");
+      return;
+    }
+    if (chgPwd) {
+      if (!oldPwd) {
+        setErr("Ingresa tu contraseña actual.");
+        return;
+      }
+      if (newPwd.length < 4) {
+        setErr("La nueva contraseña debe tener al menos 4 caracteres.");
+        return;
+      }
+      if (newPwd !== newPwd2) {
+        setErr("Las contraseñas no coinciden.");
+        return;
+      }
+    }
+    setBusy(true);
+    const result = await onSave({
+      name,
+      email,
+      oldPwd: chgPwd ? oldPwd : null,
+      newPwd: chgPwd ? newPwd : null
+    });
+    setBusy(false);
+    if (result) setErr(result);
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "\uD83D\uDC64 Editar perfil de admin",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nombre"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "Tu nombre",
+    value: name,
+    onChange: e => setName(e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Correo de recuperaci\xF3n"), /*#__PURE__*/React.createElement("input", {
+    type: "email",
+    style: {
+      ...inp(),
+      marginBottom: "20px"
+    },
+    placeholder: "tu@correo.com",
+    value: email,
+    onChange: e => setEmail(e.target.value)
+  }), /*#__PURE__*/React.createElement("div", {
+    onClick: () => {
+      setChgPwd(s => !s);
+      setErr("");
+    },
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "12px",
+      background: "#152236",
+      borderRadius: "12px",
+      padding: "12px 14px",
+      cursor: "pointer",
+      marginBottom: "14px",
+      userSelect: "none"
+    }
+  }, /*#__PURE__*/React.createElement(ILock, {
+    s: 17,
+    c: chgPwd ? "#6366f1" : T3
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T1,
+      fontSize: "14px"
+    }
+  }, "Cambiar contrase\xF1a"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "11px",
+      color: T3
+    }
+  }, "Opcional \u2014 deja sin marcar si no quieres cambiarla")), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "40px",
+      height: "22px",
+      borderRadius: "11px",
+      background: chgPwd ? "#6366f1" : "#1e3354",
+      position: "relative",
+      flexShrink: 0,
+      transition: "background .2s"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "16px",
+      height: "16px",
+      borderRadius: "50%",
+      background: "white",
+      position: "absolute",
+      top: "3px",
+      left: chgPwd ? "21px" : "3px",
+      transition: "left .2s"
+    }
+  }))), chgPwd && /*#__PURE__*/React.createElement("div", {
+    style: {
+      background: "#6366f110",
+      border: "1px solid #6366f130",
+      borderRadius: "12px",
+      padding: "14px",
+      marginBottom: "14px"
+    }
+  }, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Contrase\xF1a actual"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      position: "relative",
+      marginBottom: "12px"
+    }
+  }, /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      paddingRight: "44px"
+    },
+    placeholder: "Tu contrase\xF1a actual",
+    value: oldPwd,
+    onChange: e => setOldPwd(e.target.value)
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => setShow(s => !s),
+    style: {
+      position: "absolute",
+      right: "12px",
+      top: "12px",
+      background: "none",
+      border: "none",
+      cursor: "pointer",
+      color: T3,
+      fontSize: "18px"
+    }
+  }, show ? "🙈" : "👁️")), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nueva contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: {
+      ...inp(),
+      marginBottom: "12px"
+    },
+    placeholder: "M\xEDnimo 4 caracteres",
+    value: newPwd,
+    onChange: e => setNewPwd(e.target.value)
+  }), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Repetir nueva contrase\xF1a"), /*#__PURE__*/React.createElement("input", {
+    type: show ? "text" : "password",
+    style: inp(),
+    placeholder: "Repite la contrase\xF1a",
+    value: newPwd2,
+    onChange: e => setNewPwd2(e.target.value)
+  })), err && /*#__PURE__*/React.createElement(Err, {
+    msg: err
+  }), /*#__PURE__*/React.createElement(Btn, {
+    onClick: submit,
+    busy: busy,
+    color: "#6366f1",
+    label: "Guardar cambios"
+  }));
+}
+function CategoriesModal({
+  cats,
+  onClose,
+  onAdd,
+  onDelete
+}) {
+  const [f, setF] = useState({
+    name: "",
+    icon: "⭐",
+    color: "#10b981"
+  });
+  const upd = (k, v) => setF(p => ({
+    ...p,
+    [k]: v
+  }));
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "\uD83C\uDFA8 Categor\xEDas",
+    onClose: onClose
+  }), /*#__PURE__*/React.createElement("div", {
+    style: {
+      maxHeight: "240px",
+      overflowY: "auto",
+      marginBottom: "16px"
+    }
+  }, cats.map(c => /*#__PURE__*/React.createElement("div", {
+    key: c.name,
+    style: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "9px 12px",
+      borderRadius: "10px",
+      marginBottom: "6px",
+      background: "#152236"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "32px",
+      height: "32px",
+      borderRadius: "8px",
+      background: c.color + "25",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "18px"
+    }
+  }, c.icon), /*#__PURE__*/React.createElement("div", {
+    style: {
+      flex: 1,
+      fontWeight: "600",
+      color: T1,
+      fontSize: "14px"
+    }
+  }, c.name), /*#__PURE__*/React.createElement("div", {
+    style: {
+      width: "10px",
+      height: "10px",
+      borderRadius: "50%",
+      background: c.color,
+      flexShrink: 0
+    }
+  }), /*#__PURE__*/React.createElement("button", {
+    onClick: () => onDelete(c.name),
+    className: "delbtn",
+    style: {
+      background: "transparent",
+      border: "none",
+      cursor: "pointer",
+      color: "#ef4444",
+      padding: "4px",
+      display: "flex"
+    }
+  }, /*#__PURE__*/React.createElement(ITrash, {
+    s: 13
+  }))))), /*#__PURE__*/React.createElement("div", {
+    style: {
+      borderTop: `1px solid ${BRD}`,
+      paddingTop: "16px"
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T1,
+      marginBottom: "12px",
+      fontSize: "14px"
+    }
+  }, "+ Nueva categor\xEDa"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "grid",
+      gridTemplateColumns: "72px 1fr",
+      gap: "10px",
+      marginBottom: "10px"
+    }
+  }, /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Emoji"), /*#__PURE__*/React.createElement("input", {
+    style: {
+      ...inp(),
+      textAlign: "center",
+      fontSize: "22px",
+      padding: "8px"
+    },
+    maxLength: "2",
+    value: f.icon,
+    onChange: e => upd("icon", e.target.value)
+  })), /*#__PURE__*/React.createElement("div", null, /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Nombre"), /*#__PURE__*/React.createElement("input", {
+    style: inp(),
+    placeholder: "Ej: Mascotas",
+    value: f.name,
+    onChange: e => upd("name", e.target.value)
+  }))), /*#__PURE__*/React.createElement("label", {
+    style: lbl
+  }, "Color"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      display: "flex",
+      gap: "8px",
+      flexWrap: "wrap",
+      marginBottom: "14px"
+    }
+  }, CAT_COLORS.map(c => /*#__PURE__*/React.createElement("button", {
+    key: c,
+    onClick: () => upd("color", c),
+    style: {
+      width: "30px",
+      height: "30px",
+      borderRadius: "50%",
+      background: c,
+      border: f.color === c ? "3px solid white" : "3px solid transparent",
+      cursor: "pointer"
+    }
+  }))), /*#__PURE__*/React.createElement(Btn, {
+    onClick: () => {
+      if (f.name.trim() && !cats.find(c => c.name === f.name)) {
+        onAdd({
+          name: f.name.trim(),
+          icon: f.icon || "⭐",
+          color: f.color
+        });
+        setF({
+          name: "",
+          icon: "⭐",
+          color: "#10b981"
+        });
+      }
+    },
+    color: "#10b981",
+    label: "Crear categor\xEDa"
+  })));
+}
+function AlertsPanel({
+  alerts,
+  onClose,
+  onGo
+}) {
+  const meta = {
+    vencida: {
+      l: "VENCIDA",
+      bg: "#7f1d1d",
+      br: "#ef4444",
+      c: "#fca5a5",
+      i: "🚨"
+    },
+    hoy: {
+      l: "HOY / MAÑANA",
+      bg: "#ef444418",
+      br: "#ef4444",
+      c: "#f87171",
+      i: "🔴"
+    },
+    urgente: {
+      l: "ESTA SEMANA",
+      bg: "#f9731618",
+      br: "#f97316",
+      c: "#fb923c",
+      i: "🟠"
+    },
+    proxima: {
+      l: "PRÓXIMA",
+      bg: "#f59e0b15",
+      br: "#f59e0b",
+      c: "#fbbf24",
+      i: "🟡"
+    }
+  };
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement(ModalHeader, {
+    title: "\uD83D\uDD14 Alertas de cuotas",
+    onClose: onClose
+  }), !alerts.length && /*#__PURE__*/React.createElement("div", {
+    style: {
+      textAlign: "center",
+      padding: "40px 20px",
+      color: T3
+    }
+  }, /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontSize: "44px",
+      marginBottom: "10px"
+    }
+  }, "\u2705"), /*#__PURE__*/React.createElement("div", {
+    style: {
+      fontWeight: "600",
+      color: T2,
+      fontSize: "15px"
+    }
+  }, "\xA1Todo al d\xEDa!")), ["vencida", "hoy", "urgente", "proxima"].map(urg => {
+    const group = alerts.filter(a => a.urg === urg);
+    if (!group.length) return null;
+    const m = meta[urg];
+    return /*#__PURE__*/React.createElement("div", {
+      key: urg,
+      style: {
+        marginBottom: "16px"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        fontWeight: "700",
+        letterSpacing: "1.5px",
+        color: m.c,
+        marginBottom: "8px"
+      }
+    }, m.i, " ", m.l), group.map((a, i) => /*#__PURE__*/React.createElement("div", {
+      key: i,
+      onClick: () => onGo(a.member.id),
+      style: {
+        background: m.bg,
+        border: `1px solid ${m.br}40`,
+        borderRadius: "12px",
+        padding: "13px 14px",
+        marginBottom: "8px",
+        cursor: "pointer",
+        display: "flex",
+        gap: "12px",
+        alignItems: "center"
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        width: "40px",
+        height: "40px",
+        borderRadius: "50%",
+        background: a.member.color + "25",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: "20px",
+        flexShrink: 0,
+        border: `1px solid ${a.member.color}40`
+      }
+    }, a.member.avatar), /*#__PURE__*/React.createElement("div", {
+      style: {
+        flex: 1,
+        minWidth: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontWeight: "600",
+        fontSize: "14px",
+        color: T1,
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap"
+      }
+    }, a.exp.description), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "12px",
+        color: T2,
+        marginTop: "2px"
+      }
+    }, a.member.name, " \xB7 Cuota ", a.nextN, "/", a.exp.totalInstallments, a.isLast ? " · 🏁 Última" : ""), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "11px",
+        color: m.c,
+        marginTop: "2px",
+        fontWeight: "600"
+      }
+    }, a.days < 0 ? `Venció hace ${Math.abs(a.days)}d` : a.days === 0 ? "Hoy" : a.days === 1 ? "Mañana" : `En ${a.days} días`, " \xB7 ", a.due.toLocaleDateString("es-CL", {
+      day: "numeric",
+      month: "short"
+    }))), /*#__PURE__*/React.createElement("div", {
+      style: {
+        textAlign: "right",
+        flexShrink: 0
+      }
+    }, /*#__PURE__*/React.createElement("div", {
+      style: {
+        ...mono,
+        color: m.c,
+        fontSize: "14px"
+      }
+    }, fmt(a.exp.installmentAmount)), /*#__PURE__*/React.createElement("div", {
+      style: {
+        fontSize: "10px",
+        color: T3
+      }
+    }, "por mes")))));
+  }));
+}
+
+/* ── Shared UI atoms ── */
+const ModalHeader = ({
+  title,
+  onClose
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: "18px"
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: "18px",
+    fontWeight: "700",
+    color: T1
+  }
+}, title), /*#__PURE__*/React.createElement("button", {
+  onClick: onClose,
+  style: {
+    background: "#152236",
+    border: "none",
+    borderRadius: "8px",
+    padding: "7px",
+    cursor: "pointer",
+    color: T2,
+    display: "flex"
+  }
+}, /*#__PURE__*/React.createElement(IX, {
+  s: 16
+})));
+const Btn = ({
+  onClick,
+  color,
+  label,
+  busy,
+  disabled
+}) => /*#__PURE__*/React.createElement("button", {
+  onClick: onClick,
+  disabled: busy || disabled,
+  style: {
+    background: color,
+    color: color === "#22c55e" || color === "#10b981" || color === "#f59e0b" ? "#000" : "#fff",
+    border: "none",
+    borderRadius: "12px",
+    padding: "13px",
+    fontWeight: "700",
+    fontSize: "15px",
+    cursor: "pointer",
+    width: "100%",
+    fontFamily: FF,
+    opacity: busy || disabled ? 0.6 : 1,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "7px"
+  }
+}, busy ? "Procesando..." : label);
+const Err = ({
+  msg
+}) => /*#__PURE__*/React.createElement("div", {
+  style: {
+    background: "#ef444418",
+    border: "1px solid #ef444445",
+    borderRadius: "10px",
+    padding: "10px 14px",
+    fontSize: "13px",
+    color: "#f87171",
+    marginBottom: "14px"
+  }
+}, msg);
+ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.createElement(AuthWrapper, null));
+
+</script>
+
+
+<script>
+/* ── Service Worker registration ── */
+if('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => {
+        console.log('[PWA] Service Worker registrado:', reg.scope);
+        reg.addEventListener('updatefound', () => {
+          const newSW = reg.installing;
+          newSW.addEventListener('statechange', () => {
+            if(newSW.state === 'installed' && navigator.serviceWorker.controller) {
+              // New version available
+              if(confirm('Hay una nueva versión disponible. ¿Actualizar ahora?')) {
+                newSW.postMessage('skipWaiting');
+                window.location.reload();
+              }
+            }
+          });
+        });
+      })
+      .catch(err => console.log('[PWA] Error SW:', err));
+  });
+}
+
+/* ── Install prompt (Android) ── */
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  
+  const banner = document.createElement('div');
+  banner.id = 'install-banner';
+  banner.innerHTML = `
+    <div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;
+      background:#10b981;color:#000;padding:14px 20px;border-radius:16px;
+      display:flex;align-items:center;gap:12px;font-family:'Outfit',sans-serif;
+      font-weight:700;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.5);
+      max-width:340px;width:90%;cursor:pointer;" id="install-btn">
+      <span style="font-size:22px">📲</span>
+      <span style="flex:1">Instalar app en tu celular</span>
+      <button onclick="document.getElementById('install-banner').remove()" 
+        style="background:rgba(0,0,0,0.2);border:none;border-radius:8px;padding:4px 8px;
+        cursor:pointer;color:#000;font-size:16px;font-weight:700;">×</button>
+    </div>`;
+  document.body.appendChild(banner);
+  
+  document.getElementById('install-btn').addEventListener('click', async () => {
+    document.getElementById('install-banner').remove();
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    console.log('[PWA] Install outcome:', outcome);
+    deferredPrompt = null;
+  });
+});
+
+window.addEventListener('appinstalled', () => {
+  console.log('[PWA] App instalada exitosamente');
+  deferredPrompt = null;
+});
+</script>
+</body>
+</html>
