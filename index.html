@@ -5,19 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0"/>
   <title>💸 Control de Gastos Familiar</title>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-  <!-- PWA -->
-  <meta name="theme-color" content="#10b981">
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="Gastos 💸">
-  <link rel="manifest" href="manifest.json">
-  <link rel="apple-touch-icon" href="icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
-  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
-  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="96x96"  href="icons/icon-96.png">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{background:#050B18;min-height:100vh}
@@ -506,12 +493,13 @@ const BLANK_MEMBER = (overrides = {}) => ({
    5. Guarda y listo
 ══════════════════════════════════════════ */
 const FB_CONFIG = {
-  apiKey: "TU_API_KEY",
-  authDomain: "TU_PROYECTO.firebaseapp.com",
-  projectId: "TU_PROYECTO_ID",
-  storageBucket: "TU_PROYECTO.appspot.com",
-  messagingSenderId: "TU_SENDER_ID",
-  appId: "TU_APP_ID"
+  apiKey: "AIzaSyCTCQvkuLHOGcXrlEIh_TW_LiJ-PeWas6A",
+  authDomain: "gastos-familia-24910.firebaseapp.com",
+  databaseURL: "https://gastos-familia-24910-default-rtdb.firebaseio.com",
+  projectId: "gastos-familia-24910",
+  storageBucket: "gastos-familia-24910.firebasestorage.app",
+  messagingSenderId: "770310012278",
+  appId: "1:770310012278:web:fb643ff7fdbd75acdd0e57"
 };
 const FB_CONFIGURED = FB_CONFIG.apiKey !== "TU_API_KEY";
 
@@ -6390,66 +6378,5 @@ ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.c
 
 </script>
 
-
-<script>
-/* ── Service Worker registration ── */
-if('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('sw.js')
-      .then(reg => {
-        console.log('[PWA] Service Worker registrado:', reg.scope);
-        reg.addEventListener('updatefound', () => {
-          const newSW = reg.installing;
-          newSW.addEventListener('statechange', () => {
-            if(newSW.state === 'installed' && navigator.serviceWorker.controller) {
-              // New version available
-              if(confirm('Hay una nueva versión disponible. ¿Actualizar ahora?')) {
-                newSW.postMessage('skipWaiting');
-                window.location.reload();
-              }
-            }
-          });
-        });
-      })
-      .catch(err => console.log('[PWA] Error SW:', err));
-  });
-}
-
-/* ── Install prompt (Android) ── */
-let deferredPrompt;
-window.addEventListener('beforeinstallprompt', e => {
-  e.preventDefault();
-  deferredPrompt = e;
-  
-  const banner = document.createElement('div');
-  banner.id = 'install-banner';
-  banner.innerHTML = `
-    <div style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%);z-index:9999;
-      background:#10b981;color:#000;padding:14px 20px;border-radius:16px;
-      display:flex;align-items:center;gap:12px;font-family:'Outfit',sans-serif;
-      font-weight:700;font-size:14px;box-shadow:0 8px 32px rgba(0,0,0,0.5);
-      max-width:340px;width:90%;cursor:pointer;" id="install-btn">
-      <span style="font-size:22px">📲</span>
-      <span style="flex:1">Instalar app en tu celular</span>
-      <button onclick="document.getElementById('install-banner').remove()" 
-        style="background:rgba(0,0,0,0.2);border:none;border-radius:8px;padding:4px 8px;
-        cursor:pointer;color:#000;font-size:16px;font-weight:700;">×</button>
-    </div>`;
-  document.body.appendChild(banner);
-  
-  document.getElementById('install-btn').addEventListener('click', async () => {
-    document.getElementById('install-banner').remove();
-    deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log('[PWA] Install outcome:', outcome);
-    deferredPrompt = null;
-  });
-});
-
-window.addEventListener('appinstalled', () => {
-  console.log('[PWA] App instalada exitosamente');
-  deferredPrompt = null;
-});
-</script>
 </body>
 </html>
