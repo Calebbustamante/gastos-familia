@@ -1,11 +1,11 @@
 const CACHE_NAME = 'gastos-familiar-v1';
 
 const STATIC_ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png',
+  '/gastos-familia/',
+  '/gastos-familia/index.html',
+  '/gastos-familia/manifest.json',
+  '/gastos-familia/icons/icon-192.png',
+  '/gastos-familia/icons/icon-512.png',
 ];
 
 const CDN_ASSETS = [

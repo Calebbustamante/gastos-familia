@@ -11,13 +11,13 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="Gastos 💸">
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icons/icon-192.png">
-  <link rel="apple-touch-icon" sizes="152x152" href="/icons/icon-152.png">
-  <link rel="apple-touch-icon" sizes="144x144" href="/icons/icon-144.png">
-  <link rel="apple-touch-icon" sizes="128x128" href="/icons/icon-128.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-  <link rel="icon" type="image/png" sizes="96x96"  href="/icons/icon-96.png">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="icons/icon-152.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="icons/icon-144.png">
+  <link rel="apple-touch-icon" sizes="128x128" href="icons/icon-128.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="icon" type="image/png" sizes="96x96"  href="icons/icon-96.png">
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
     html,body{background:#050B18;min-height:100vh}
@@ -513,35 +513,63 @@ const FB_CONFIG = {
   messagingSenderId: "TU_SENDER_ID",
   appId: "TU_APP_ID"
 };
-const FB_OK = FB_CONFIG.apiKey !== "TU_API_KEY" && typeof firebase !== "undefined";
-let _db = null;
-const getDb = () => {
-  if (!_db && FB_OK) {
-    try {
-      if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
-      _db = firebase.firestore();
-      _db.enablePersistence({
-        synchronizeTabs: true
-      }).catch(() => {});
-    } catch (e) {
-      console.warn("[Firebase] Init:", e);
-    }
+const FB_CONFIGURED = FB_CONFIG.apiKey !== "TU_API_KEY";
+
+// Wait for firebase SDK to be available
+const waitForFirebase = () => new Promise(resolve => {
+  if (typeof firebase !== "undefined") {
+    resolve(true);
+    return;
   }
-  return _db;
+  let tries = 0;
+  const check = setInterval(() => {
+    tries++;
+    if (typeof firebase !== "undefined") {
+      clearInterval(check);
+      resolve(true);
+    } else if (tries > 20) {
+      clearInterval(check);
+      resolve(false);
+    }
+  }, 200);
+});
+let _db = null;
+let FB_OK = false;
+const initFirebase = async () => {
+  if (!FB_CONFIGURED) return false;
+  const ready = await waitForFirebase();
+  if (!ready) {
+    console.warn("[Firebase] SDK not loaded");
+    return false;
+  }
+  try {
+    if (!firebase.apps.length) firebase.initializeApp(FB_CONFIG);
+    _db = firebase.firestore();
+    _db.enablePersistence({
+      synchronizeTabs: true
+    }).catch(() => {});
+    FB_OK = true;
+    console.log("[Firebase] ✓ Conectado");
+    return true;
+  } catch (e) {
+    console.warn("[Firebase] Init error:", e);
+    return false;
+  }
 };
 const familyRef = () => {
   try {
-    var _getDb;
-    return (_getDb = getDb()) === null || _getDb === void 0 ? void 0 : _getDb.collection("family").doc("data");
+    var _db2;
+    return (_db2 = _db) === null || _db2 === void 0 ? void 0 : _db2.collection("family").doc("data");
   } catch {
     return null;
   }
 };
 const cloudLoad = async () => {
   try {
-    var _familyRef;
-    const s = await ((_familyRef = familyRef()) === null || _familyRef === void 0 ? void 0 : _familyRef.get());
-    return s !== null && s !== void 0 && s.exists ? s.data() : null;
+    const ref = familyRef();
+    if (!ref) return null;
+    const s = await ref.get();
+    return s.exists ? s.data() : null;
   } catch (e) {
     console.warn("[Firebase] Load:", e);
     return null;
@@ -549,8 +577,10 @@ const cloudLoad = async () => {
 };
 const cloudSave = d => {
   try {
-    var _familyRef2;
-    (_familyRef2 = familyRef()) === null || _familyRef2 === void 0 || _familyRef2.set(d);
+    const ref = familyRef();
+    if (!ref) return;
+    // Use set with merge:false to replace entire doc atomically
+    ref.set(JSON.parse(JSON.stringify(d)));
   } catch (e) {
     console.warn("[Firebase] Save:", e);
   }
@@ -634,45 +664,64 @@ function AuthWrapper() {
     const init = async () => {
       var _d;
       setSyncSt("syncing");
+      // Always load local first so app is instant
+      const local = load();
+
+      // Try to init Firebase
+      const fbReady = await initFirebase();
       let d = null;
-      // Try Firebase first
-      if (FB_OK) {
+      if (fbReady) {
         try {
           d = await cloudLoad();
-          setSyncSt("synced");
-        } catch {
+          if (d) {
+            save(d);
+            setSyncSt("synced");
+          } else if (local) {
+            cloudSave(local);
+            d = local;
+            setSyncSt("synced");
+          }
+        } catch (e) {
+          console.warn("[Firebase] Load failed:", e);
           setSyncSt("error");
         }
       }
-      // Fall back to localStorage
-      if (!d) d = load();
+      if (!d) d = local;
       if (!((_d = d) !== null && _d !== void 0 && (_d = _d.admin) !== null && _d !== void 0 && _d.hash)) {
         setSc("setup");
+        setSyncSt(fbReady ? "synced" : "local");
         return;
       }
       setData(d);
       setSc("who");
-      // Real-time listener for changes from other devices
-      if (FB_OK) {
-        var _familyRef3;
-        (_familyRef3 = familyRef()) === null || _familyRef3 === void 0 || _familyRef3.onSnapshot(snap => {
-          if (snap.exists && !snap.metadata.hasPendingWrites) {
+      setSyncSt(fbReady ? "synced" : "local");
+
+      // Real-time listener — only after successful init
+      if (fbReady) {
+        var _familyRef;
+        (_familyRef = familyRef()) === null || _familyRef === void 0 || _familyRef.onSnapshot(snap => {
+          if (snap && snap.exists && !snap.metadata.hasPendingWrites) {
             const remote = snap.data();
-            setData(remote);
-            save(remote); // cache locally
-            setSyncSt("synced");
+            if (remote !== null && remote !== void 0 && remote.admin) {
+              setData(remote);
+              save(remote);
+              setSyncSt("synced");
+            }
           }
-        }, () => setSyncSt("error"));
+        }, e => {
+          console.warn("[Firebase] Snapshot error:", e);
+          setSyncSt("error");
+        });
       }
     };
     init();
   }, []);
   const persist = d => {
     setData(d);
-    save(d); // localStorage (instant)
-    if (FB_OK) {
-      cloudSave(d);
+    save(d); // localStorage always
+    if (FB_OK && _db) {
       setSyncSt("syncing");
+      cloudSave(d);
       setTimeout(() => setSyncSt("synced"), 1500);
     }
   };
@@ -1001,19 +1050,45 @@ function AuthWrapper() {
   });
   return /*#__PURE__*/React.createElement(Splash, null);
 }
-const Splash = () => /*#__PURE__*/React.createElement("div", {
+const Splash = ({
+  msg
+}) => /*#__PURE__*/React.createElement("div", {
   style: {
     minHeight: "100vh",
     background: BG,
     display: "flex",
+    flexDirection: "column",
     alignItems: "center",
     justifyContent: "center",
+    gap: "16px",
+    fontFamily: FF
+  }
+}, /*#__PURE__*/React.createElement("div", {
+  style: {
+    fontSize: "48px"
+  }
+}, "\uD83D\uDCB8"), /*#__PURE__*/React.createElement("div", {
+  style: {
     color: "#10b981",
     fontFamily: MN,
-    fontSize: "14px",
+    fontSize: "13px",
     letterSpacing: "3px"
   }
-}, "CARGANDO...");
+}, msg || "CARGANDO..."), /*#__PURE__*/React.createElement("div", {
+  style: {
+    display: "flex",
+    gap: "6px"
+  }
+}, [0, 1, 2].map(i => /*#__PURE__*/React.createElement("div", {
+  key: i,
+  style: {
+    width: "8px",
+    height: "8px",
+    borderRadius: "50%",
+    background: "#10b981",
+    animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`
+  }
+}))));
 
 /* ════════════════════════════════════════════════════════════
    SETUP SCREEN  (first launch — create admin account)
@@ -2209,7 +2284,7 @@ function AdminApp({
     title: "Cerrar sesi\xF3n"
   }, /*#__PURE__*/React.createElement(ILogout, {
     s: 17
-  })))), FB_OK && /*#__PURE__*/React.createElement("div", {
+  })))), FB_CONFIGURED && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -2892,7 +2967,7 @@ function MemberDetail({
       padding: "2px 8px",
       borderRadius: "6px"
     }
-  }, "ADMIN")), FB_OK && /*#__PURE__*/React.createElement("div", {
+  }, "ADMIN")), FB_CONFIGURED && /*#__PURE__*/React.createElement("div", {
     style: {
       display: "flex",
       alignItems: "center",
@@ -6313,7 +6388,7 @@ ReactDOM.createRoot(document.getElementById('root')).render(/*#__PURE__*/React.c
 /* ── Service Worker registration ── */
 if('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js')
+    navigator.serviceWorker.register('sw.js')
       .then(reg => {
         console.log('[PWA] Service Worker registrado:', reg.scope);
         reg.addEventListener('updatefound', () => {
